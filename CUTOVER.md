@@ -24,7 +24,9 @@
 
 ## 新主機安裝(一次性)
 1. 裝 Node 24(要有內建的 `node:sqlite`)。
-2. 複製整個 `patracker-v2` 資料夾(不含 `node_modules`、`.next`),`npm ci`,`npm run build`。
+2. `git clone https://github.com/aleckuab/patracker-v2.git`(Trackly 同樣 clone `aleckuab/trackly`),
+   再把舊電腦的 `data/` 資料夾複製過去(資料庫不在 GitHub 上),`npm ci`,`npm run build`。
+   之後改程式:push → 新主機 `git pull`、`npm ci`、`npm run build`、重啟。
 3. `.env.local` 照 `.env.example` 填:`SESSION_SECRET` 要跟 Trackly **一字不差**,`TRACKLY_DB` 指到同一台機器上 Trackly 的 `trackly.db`。
 4. 先啟動升級後的 Trackly 並打一個 API(sessions 表第一次存取才建),再啟動本站。順序反了所有人都會被擋(故意 fail closed)。
 5. 開機自動啟動:`scripts/start-patracker.cmd` 與 `.vbs` 是範本,**裡面的 node 與資料夾路徑要改成新主機的**,再用工作排程在登入時執行。port 3200。
