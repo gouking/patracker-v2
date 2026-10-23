@@ -1,0 +1,382 @@
+/* PA Tracker 的樣式。
+ *
+ * 全部掛在 .pa-root 底下 —— 甘特圖的 globals.css 也有 .btn / .topbar / .chip 這些
+ * 名字,兩邊撞名時靠這一層多出來的 .pa-root 勝出。加新規則請照這個寫法。
+ *
+ * 顏色沿用甘特圖的變數,只有紅黃燈與 info 這幾個是 PA 自己的。
+ */
+
+.pa-root {
+  --red-cell: #f6c9c0; --red-ink: #8a2a1c;
+  --yellow-cell: #f7e7a1; --yellow-ink: #6b5306;
+  --info: #2f6fb0; --info-soft: #dbe7f3;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .pa-root {
+    --red-cell: #5a2620; --red-ink: #ffb4a8;
+    --yellow-cell: #4d4114; --yellow-ink: #f4dc84;
+    --info: #6fa8e0; --info-soft: #1c2e40;
+  }
+}
+:root[data-theme="dark"] .pa-root {
+  --red-cell: #5a2620; --red-ink: #ffb4a8;
+  --yellow-cell: #4d4114; --yellow-ink: #f4dc84;
+  --info: #6fa8e0; --info-soft: #1c2e40;
+}
+
+.pa-root { background: var(--paper); color: var(--ink); font-family: var(--font-body); font-size: 14px; line-height: 1.5; min-height: 100vh; }
+.pa-root a { color: inherit; }
+.pa-root button { font-family: inherit; cursor: pointer; }
+.pa-root input, .pa-root select, .pa-root textarea { font-family: inherit; font-size: 13px; color: var(--ink); background: var(--surface); border: 1px solid var(--line-strong); border-radius: 6px; padding: 6px 8px; }
+.pa-root input:focus, .pa-root select:focus, .pa-root textarea:focus, .pa-root button:focus-visible, .pa-root a:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* 字型由 src/app/globals.css 載入,這裡不重複 @import */
+.pa-root a { color: inherit; }
+.pa-root button { font-family: inherit; cursor: pointer; }
+.pa-root .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.pa-root input,
+.pa-root select,
+.pa-root textarea { font-family: inherit; font-size: 13px; color: var(--ink); background: var(--surface); border: 1px solid var(--line-strong); border-radius: 6px; padding: 6px 8px; }
+.pa-root input:focus,
+.pa-root select:focus,
+.pa-root textarea:focus,
+.pa-root button:focus-visible,
+.pa-root a:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.pa-root .btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); border-radius: 7px; padding: 6px 12px; font-size: 13px; font-weight: 600; text-decoration: none; white-space: nowrap; transition: background .12s; }
+.pa-root .btn:hover:not(:disabled) { background: var(--surface-2); }
+.pa-root .btn:disabled { opacity: .45; cursor: default; }
+.pa-root .btn-accent { background: var(--accent); border-color: var(--accent-strong); color: var(--accent-ink); }
+.pa-root .btn-accent:hover:not(:disabled) { background: var(--accent-strong); }
+.pa-root .btn-ghost { border-color: transparent; background: transparent; }
+.pa-root .btn-sm { padding: 3px 8px; font-size: 12px; border-radius: 6px; }
+.pa-root .btn-danger { color: var(--danger); }
+.pa-root .btn-toggle.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-on-soft); }
+/* ---------- 頂列 ---------- */
+.pa-root .topbar { position: sticky; top: 0; z-index: 40; background: var(--surface); border-bottom: 1px solid var(--line); }
+.pa-root .topbar-row { display: flex; align-items: center; gap: 8px; padding: 7px 16px; flex-wrap: wrap; min-height: 46px; }
+/* 回甘特圖:最左邊,用一條細線跟站名隔開 */
+.pa-root .backlink { display: inline-flex; align-items: center; margin-right: 4px; padding: 5px 10px 5px 3px; border-right: 1px solid var(--line); border-radius: 0; }
+.pa-root .backlink svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.pa-root .wordmark { display: flex; align-items: center; gap: 7px; text-decoration: none; }
+.pa-root .wordmark .mark { width: 9px; height: 9px; border-radius: 2px; background: var(--accent); transform: rotate(45deg); }
+.pa-root .wordmark b { font-weight: 800; font-size: 15px; }
+.pa-root .crumb { color: var(--ink-faint); font-size: 13px; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.pa-root .crumb strong { color: var(--ink); font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pa-root .topbar-tail { margin-left: auto; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.pa-root .whoami { font-size: 12px; color: var(--ink-faint); display: flex; align-items: center; gap: 6px; }
+.pa-root .rolebadge { font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-on-soft); }
+.pa-root .page { max-width: 1120px; margin: 0 auto; padding: 24px 16px 64px; }
+.pa-root .page h1 { font-size: 22px; margin: 0 0 4px; font-weight: 800; }
+.pa-root .page .lede { color: var(--ink-soft); margin: 0 0 20px; }
+.pa-root .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
+.pa-root .err { color: var(--danger); background: var(--danger-soft); border-radius: 7px; padding: 8px 10px; font-size: 13px; }
+.pa-root .ok { color: var(--success); background: var(--success-soft); border-radius: 7px; padding: 8px 10px; font-size: 13px; }
+.pa-root .muted { color: var(--ink-faint); }
+.pa-root .empty { padding: 40px 20px; text-align: center; color: var(--ink-faint); }
+/* ---------- 專案列表 ---------- */
+.pa-root .projgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.pa-root .projcard { padding: 16px 18px; text-decoration: none; color: inherit; display: flex; flex-direction: column; gap: 10px; transition: border-color .12s; }
+.pa-root .projcard:hover { border-color: var(--accent); }
+.pa-root .projcard h2 { font-size: 16px; margin: 0; font-weight: 800; }
+.pa-root .projcard .code { font-family: var(--font-mono); font-size: 12px; color: var(--ink-faint); }
+.pa-root .progress { height: 8px; border-radius: 99px; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; display: flex; }
+.pa-root .progress i { display: block; height: 100%; }
+.pa-root .progress .p-done { background: var(--success); }
+.pa-root .progress .p-going { background: var(--accent); }
+.pa-root .projstats { display: flex; gap: 14px; font-size: 12.5px; color: var(--ink-soft); flex-wrap: wrap; }
+.pa-root .projstats b { font-family: var(--font-mono); color: var(--ink); }
+.pa-root .projstats .bad b { color: var(--danger); }
+.pa-root .newproj { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 14px 16px; margin-bottom: 18px; }
+.pa-root .newproj input { min-width: 0; flex: 1 1 180px; }
+/* ---------- 主表 ---------- */
+/* 追蹤表佔滿頂列以下的整個視窗高度:表格區塊的底部(連同橫向捲軸)才會落在視窗裡,
+   不然 KPI 與篩選列會把它推到畫面外,想橫向捲還得先把整頁往下捲。 */
+.pa-root .trackerwrap { display: flex; flex-direction: column; height: calc(100dvh - 46px); }
+.pa-root .toolbar { display: flex; align-items: center; gap: 8px; padding: 10px 16px; flex-wrap: wrap; border-bottom: 1px solid var(--line); background: var(--surface); }
+.pa-root .toolbar input[type="search"] { width: 220px; max-width: 100%; }
+.pa-root .toolbar select { max-width: 180px; }
+.pa-root .toolbar .spacer { flex: 1; }
+/* 勾選之後出現的批次動作列 */
+.pa-root .bulkbar { border-top: 1px solid var(--line); background: var(--accent-soft); }
+.pa-root .bulkbar .bulkgroup { display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border-left: 1px solid var(--line-strong); font-size: 12.5px; color: var(--ink-soft); }
+.pa-root .bulkbar .bulkgroup:first-of-type { border-left: 0; }
+.pa-root .bulkbar select,
+.pa-root .bulkbar input { padding: 3px 6px; font-size: 12.5px; }
+.pa-root .kpis { display: flex; gap: 8px; padding: 10px 16px; flex-wrap: wrap; align-items: stretch; }
+.pa-root .kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 7px 12px; min-width: 96px; text-align: left; font: inherit; color: inherit; }
+.pa-root button.kpi:hover { border-color: var(--line-strong); }
+.pa-root .kpi.on { border-color: var(--accent); background: var(--accent-soft); }
+.pa-root .kpi .n { font-family: var(--font-mono); font-size: 20px; font-weight: 600; line-height: 1.2; display: block; }
+.pa-root .kpi .l { font-size: 11.5px; color: var(--ink-soft); }
+.pa-root .kpi.red .n { color: var(--danger); }
+.pa-root .kpi.good .n { color: var(--success); }
+.pa-root .legend { display: flex; gap: 12px; align-items: center; font-size: 12px; color: var(--ink-soft); margin-left: auto; flex-wrap: wrap; }
+.pa-root .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 4px; }
+.pa-root .swatch.red { background: var(--red-cell); }
+.pa-root .swatch.yellow { background: var(--yellow-cell); }
+.pa-root .swatch.mine { background: var(--info-soft); border: 1px solid var(--info); }
+/* 表格自己捲（表頭與料號欄才黏得住），高度約一個螢幕；KPI 與篩選列隨整頁捲走 */
+/* 剩下的高度全給表格;min-height: 0 是 flex 子項能真的縮小的必要條件 */
+.pa-root .tablescroll { flex: 1 1 auto; min-height: 0; overflow: auto; margin: 0 16px 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+/* 固定欄寬：2000+ px 寬的表格若讓瀏覽器自己算欄寬，每次捲動／hover 都要重算整張版面（一次 10ms 起跳） */
+/* 寬度由 Tracker.tsx 算好用 inline style 給(各欄寬度相加)。不要改回 width: max-content:
+   那樣欄寬會被內容的最小寬度撐住,拖曳只放得大、縮不小。 */
+.pa-root table.pa { border-collapse: separate; border-spacing: 0; font-size: 12.5px; table-layout: fixed; }
+/* 欄位縮窄時內容直接裁掉,不要反過來把欄位撐開 */
+.pa-root table.pa td { overflow: hidden; }
+.pa-root table.pa th,
+.pa-root table.pa td { border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); padding: 0; text-align: left; vertical-align: middle; background: var(--surface); }
+.pa-root table.pa th { position: sticky; top: 0; z-index: 3; background: var(--surface-2); font-weight: 700; font-size: 11.5px; color: var(--ink-soft); padding: 6px 8px; line-height: 1.3; overflow: hidden; }
+.pa-root table.pa th button { all: unset; cursor: pointer; display: block; }
+.pa-root table.pa th .who { display: block; font-weight: 600; color: var(--ink-faint); font-size: 10.5px; }
+.pa-root table.pa th.mine-col { box-shadow: inset 0 -3px 0 var(--info); }
+.pa-root table.pa .stick { position: sticky; z-index: 2; }
+.pa-root table.pa th.stick { z-index: 4; }
+.pa-root table.pa .c-pick { left: 0; width: 34px; text-align: center; }
+.pa-root table.pa td.c-pick,
+.pa-root table.pa th.c-pick { padding: 0 6px; }
+.pa-root table.pa .c-pn { left: 0; }
+/* 有勾選欄時，後面兩個黏住的欄位要往右讓位 */
+.pa-root table.pa.has-pick .c-pn { left: 34px; }
+.pa-root table.pa.has-pick .c-desc { left: 166px; }
+.pa-root table.pa tr.removed td .chip { text-decoration: none; }
+.pa-root table.pa .c-desc { left: 132px; box-shadow: 2px 0 0 var(--line); }
+.pa-root table.pa td .v { padding: 6px 8px; min-height: 31px; display: flex; align-items: center; gap: 6px; overflow: hidden; white-space: nowrap; }
+.pa-root table.pa td .v > span:not(.chip) { overflow: hidden; text-overflow: ellipsis; }
+/* 看不到的列不必排版與繪製 */
+.pa-root table.pa tbody tr { content-visibility: auto; contain-intrinsic-size: auto 31px; }
+.pa-root table.pa td.c-desc .v { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; line-height: 19px; }
+.pa-root table.pa td .v.link { cursor: pointer; }
+.pa-root table.pa tr:hover td { background: var(--surface-2); }
+.pa-root table.pa tr.removed td { color: var(--ink-faint); text-decoration: line-through; }
+.pa-root table.pa td.date { min-width: 104px; }
+.pa-root table.pa td.red,
+.pa-root table.pa tr:hover td.red { background: var(--red-cell); color: var(--red-ink); }
+.pa-root table.pa td.yellow,
+.pa-root table.pa tr:hover td.yellow { background: var(--yellow-cell); color: var(--yellow-ink); }
+.pa-root table.pa td.editable .v { cursor: text; }
+.pa-root table.pa td.editable .v:hover { box-shadow: inset 0 0 0 1px var(--info); }
+.pa-root table.pa td.editable.todo:not(.red) .v { box-shadow: inset 3px 0 0 var(--info); }
+.pa-root table.pa td .sub { font-size: 11px; opacity: .85; }
+.pa-root table.pa td .hint { font-size: 11px; color: var(--ink-faint); }
+.pa-root table.pa td input,
+.pa-root table.pa td select { width: 100%; padding: 4px 6px; font-size: 12.5px; }
+.pa-root .celledit { display: flex; gap: 4px; padding: 3px 4px; align-items: center; }
+.pa-root .celledit .btn { padding: 2px 6px; font-size: 11px; }
+.pa-root .status { font-size: 11.5px; white-space: nowrap; }
+.pa-root .chip { display: inline-block; font-size: 11px; font-weight: 700; padding: 0 6px; border-radius: 99px; background: var(--surface-2); border: 1px solid var(--line); color: var(--ink-soft); white-space: nowrap; }
+.pa-root .chip.good { background: var(--success-soft); color: var(--success); border-color: transparent; }
+.pa-root .chip.warn { background: var(--danger-soft); color: var(--danger); border-color: transparent; }
+.pa-root .chip.info { background: var(--info-soft); color: var(--info); border-color: transparent; }
+/* ---------- 側欄 ---------- */
+.pa-root .drawer-bg { position: fixed; inset: 0; background: rgba(0,0,0,.25); z-index: 50; }
+.pa-root .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(560px, 100vw); background: var(--surface); z-index: 51; box-shadow: var(--shadow); display: flex; flex-direction: column; border-left: 1px solid var(--line); }
+.pa-root .drawer header { padding: 14px 18px; border-bottom: 1px solid var(--line); display: flex; gap: 10px; align-items: flex-start; }
+.pa-root .drawer header h2 { margin: 0; font-size: 16px; font-family: var(--font-mono); }
+.pa-root .drawer header p { margin: 2px 0 0; color: var(--ink-soft); font-size: 13px; }
+.pa-root .drawer .body { overflow: auto; padding: 14px 18px 40px; display: flex; flex-direction: column; gap: 20px; }
+.pa-root .drawer h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-faint); margin: 0 0 8px; }
+.pa-root .kv { display: grid; grid-template-columns: 140px 1fr; gap: 4px 12px; font-size: 13px; align-items: center; }
+.pa-root .kv dt { color: var(--ink-soft); }
+.pa-root .kv dd { margin: 0; min-height: 28px; display: flex; align-items: center; gap: 6px; }
+.pa-root .kv dd input,
+.pa-root .kv dd select { flex: 1; min-width: 0; }
+.pa-root .timeline { display: flex; flex-direction: column; gap: 6px; }
+.pa-root .tl { display: grid; grid-template-columns: 18px 1fr auto; gap: 8px; align-items: center; font-size: 13px; padding: 6px 8px; border-radius: 8px; background: var(--surface-2); }
+.pa-root .tl .dot { width: 10px; height: 10px; border-radius: 99px; background: var(--line-strong); justify-self: center; }
+.pa-root .tl.done .dot { background: var(--success); }
+.pa-root .tl.red { background: var(--red-cell); color: var(--red-ink); }
+.pa-root .tl.red .dot { background: var(--danger); }
+.pa-root .tl.yellow { background: var(--yellow-cell); color: var(--yellow-ink); }
+.pa-root .issues { display: flex; flex-direction: column; gap: 6px; }
+.pa-root .issue { display: grid; grid-template-columns: 38px 92px 1fr auto; gap: 8px; align-items: start; font-size: 13px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; }
+.pa-root .issueform { display: grid; grid-template-columns: 70px 140px 1fr auto; gap: 6px; margin-top: 6px; }
+.pa-root .history { font-size: 12.5px; display: flex; flex-direction: column; gap: 4px; }
+.pa-root .history li { list-style: none; color: var(--ink-soft); }
+.pa-root .history ul { margin: 0; padding: 0; }
+/* ---------- 匯入 / 設定 ---------- */
+.pa-root .section { padding: 18px 20px; margin-bottom: 16px; }
+.pa-root .section h2 { font-size: 15px; margin: 0 0 12px; font-weight: 800; }
+.pa-root .difflist { max-height: 260px; overflow: auto; font-size: 12.5px; border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; margin: 6px 0 12px; }
+.pa-root .difflist div { padding: 2px 0; }
+.pa-root .stats4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin: 10px 0 14px; }
+.pa-root .maptable { font-size: 12.5px; border-collapse: collapse; }
+.pa-root .maptable td { padding: 2px 10px 2px 0; }
+.pa-root .members { width: 100%; border-collapse: collapse; font-size: 13px; }
+.pa-root .members th,
+.pa-root .members td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); }
+.pa-root .members td.ck,
+.pa-root .members th.ck { text-align: center; width: 72px; }
+.pa-root .slagrid { display: grid; grid-template-columns: 1fr 90px; gap: 8px 12px; align-items: center; max-width: 520px; font-size: 13px; }
+.pa-root .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+@media (max-width: 720px) {
+  .pa-root .topbar-row { padding: 6px 12px; }
+  .pa-root .toolbar,
+  .pa-root .kpis { padding-left: 12px; padding-right: 12px; }
+  .pa-root .tablescroll { margin: 0 12px 12px; }
+  .pa-root .kpi { min-width: 0; padding: 5px 10px; }
+  .pa-root .kpi .n { font-size: 16px; }
+  .pa-root table.pa .c-desc { position: static; min-width: 200px; box-shadow: none; }
+  .pa-root .legend { margin-left: 0; }
+  .pa-root .kv { grid-template-columns: 110px 1fr; }
+  .pa-root .issueform { grid-template-columns: 1fr 1fr; }
+  .pa-root .issue { grid-template-columns: 34px 86px 1fr auto; }
+}
+
+/* ---------- 欄位選單 ---------- */
+.pa-root .colmenu { position: relative; display: inline-flex; }
+/* 蓋住整頁,點外面就關起來 */
+.pa-root .colmenu-bg { position: fixed; inset: 0; z-index: 55; }
+.pa-root .colmenu-pop { position: absolute; top: calc(100% + 6px); left: 0; z-index: 56; width: 260px; max-height: 60vh; overflow: auto; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 10px; box-shadow: var(--shadow); padding: 6px 0; }
+.pa-root .colmenu-head { display: flex; align-items: center; gap: 6px; padding: 4px 10px 8px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+.pa-root .colmenu-head b { flex: 1; font-size: 12.5px; }
+.pa-root .colmenu-row { display: flex; align-items: center; gap: 8px; padding: 5px 10px; font-size: 13px; cursor: pointer; }
+.pa-root .colmenu-row:hover { background: var(--surface-2); }
+.pa-root .colmenu-row span:first-of-type { flex: 1; }
+.pa-root .colmenu-row input:disabled + span { color: var(--ink-faint); }
+
+/* ---------- 進度（remark）那一欄 ---------- */
+/* 這一欄跟別的不一樣:不截斷、可換行,列高跟著內容長高（就像原本 Excel 的 remark） */
+.pa-root table.pa td.c-notes { vertical-align: top; }
+.pa-root table.pa td.c-notes .notes { padding: 5px 8px; display: flex; flex-direction: column; gap: 2px; white-space: normal; }
+.pa-root table.pa td.c-notes .notes.editable { cursor: text; }
+.pa-root table.pa td.c-notes .notes.editable:hover { box-shadow: inset 0 0 0 1px var(--info); }
+.pa-root table.pa td.c-notes .noteline { display: grid; grid-template-columns: 52px 1fr; gap: 6px; align-items: baseline; line-height: 1.45; }
+.pa-root table.pa td.c-notes .noteline .mono { color: var(--ink-faint); font-size: 11.5px; }
+.pa-root table.pa td.c-notes .hint { font-size: 11.5px; }
+.pa-root .noteedit { flex-wrap: wrap; gap: 4px; }
+.pa-root .noteedit input[type="date"] { width: 118px; flex: none; }
+.pa-root .noteedit input:not([type="date"]) { flex: 1; min-width: 120px; }
+
+/* ---------- 拖曳調欄寬 ---------- */
+/* th 本來就是 sticky(黏在最上面),所以絕對定位的把手以它為基準;它有 overflow: hidden,
+   把手要整個放在格子裡面(right: 0),放到外面會被裁掉。 */
+.pa-root .colresize { position: absolute; top: 0; right: 0; width: 8px; height: 100%; cursor: col-resize; z-index: 5; touch-action: none; }
+.pa-root .colresize:hover, body.pa-resizing .pa-root .colresize { background: var(--accent); opacity: .5; }
+/* 拖曳中整頁都不要選字、游標統一 */
+body.pa-resizing { cursor: col-resize; user-select: none; }
+/* 黏住的兩欄改吃變數:欄寬一變,它們的 left 也跟著變 */
+.pa-root table.pa .c-pn { left: var(--pa-left-pn, 0px); }
+.pa-root table.pa .c-desc { left: var(--pa-left-desc, 132px); }
+.pa-root table.pa.has-pick .c-pn { left: var(--pa-left-pn, 34px); }
+.pa-root table.pa.has-pick .c-desc { left: var(--pa-left-desc, 166px); }
+
+/* 載入中的卡片:只是把版面先佔住,不要閃 */
+.pa-root .projcard.skeleton { color: var(--ink-faint); opacity: .6; pointer-events: none; }
+.pa-root .projcard.skeleton h2 { font-weight: 600; font-size: 14px; }
+
+/* ---------- 階段 Dashboard(PhaseBoard.tsx)---------- */
+/* 每個階段一個顏色:綠=完成、藍=PLM(Sourcer)、琥珀=RD/QA 審核、紫=待圖面進版、紅=ISSUE、灰=廠商/還沒開始/不需PA */
+.pa-root .ph-done { --ph: var(--success); --ph-soft: var(--success-soft); }
+.pa-root .ph-plm_signing, .pa-root .ph-plm_ready { --ph: var(--starttoday); --ph-soft: var(--starttoday-soft); }
+.pa-root .ph-hold_ec { --ph: var(--hold); --ph-soft: var(--hold-soft); }
+.pa-root .ph-review_both, .pa-root .ph-review_rd, .pa-root .ph-review_qa { --ph: var(--accent-strong); --ph-soft: var(--accent-soft); }
+.pa-root .ph-supplier, .pa-root .ph-to_notify { --ph: var(--ink-soft); --ph-soft: var(--surface-2); }
+.pa-root .ph-rework_qa, .pa-root .ph-rework_rd { --ph: var(--hold); --ph-soft: var(--hold-soft); }
+.pa-root .ph-hold_issue { --ph: var(--danger); --ph-soft: var(--danger-soft); }
+.pa-root .ph-not_started, .pa-root .ph-na { --ph: var(--ink-faint); --ph-soft: var(--surface-2); }
+
+.pa-root .phase-chip { display: inline-block; font-size: 11.5px; font-weight: 700; padding: 0 7px; border-radius: 99px;
+  color: var(--ph); background: var(--ph-soft); border: 1px solid color-mix(in srgb, var(--ph) 35%, transparent); white-space: nowrap; }
+.pa-root .phase-chip.ph-review_both, .pa-root .phase-chip.ph-review_rd, .pa-root .phase-chip.ph-review_qa { color: var(--accent-on-soft); }
+
+/* 有料號的專案卡片佔滿整列:上面一行專案資訊,下面接階段表 */
+.pa-root .projwide { grid-column: 1 / -1; gap: 12px; }
+.pa-root .projwide:hover { border-color: var(--line); }
+.pa-root .pw-head { display: flex; align-items: center; gap: 10px 18px; flex-wrap: wrap; }
+.pa-root .pw-title { display: flex; align-items: baseline; gap: 8px; text-decoration: none; color: inherit; }
+.pa-root .pw-title:hover h2 { color: var(--accent-strong); }
+.pa-root .pw-head .spacer { flex: 1; }
+.pa-root .pb-bar { display: flex; gap: 2px; height: 10px; border-radius: 99px; overflow: hidden; }
+.pa-root .pb-seg { display: block; flex-basis: 0; min-width: 4px; background: var(--ph); opacity: .85; }
+.pa-root .pb-seg:hover { opacity: 1; outline: 2px solid var(--ink); outline-offset: -2px; }
+.pa-root .pb-table { width: 100%; margin-top: 8px; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+.pa-root .pb-table th { white-space: nowrap; text-align: left; font-weight: 600; color: var(--ink-soft); font-size: 12px; padding: 4px 8px; border-bottom: 1px solid var(--line-strong); }
+.pa-root .pb-table th:nth-child(1) { width: 130px; }
+.pa-root .pb-table th:nth-child(2), .pa-root .pb-table th:nth-child(3) { width: 72px; }
+.pa-root .pb-table th:nth-child(4) { width: 96px; }
+.pa-root .pb-table td { padding: 3px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pa-root .pb-table .num { text-align: right; }
+.pa-root .pb-table td.desc { color: var(--ink-soft); }
+.pa-root .pb-table tfoot td { font-weight: 700; border-bottom: 0; border-top: 1px solid var(--line-strong); }
+/* 整列可點:第一格的連結用 ::after 撐滿整列(tr 是定位基準) */
+.pa-root .pb-table tbody tr { position: relative; }
+.pa-root .pb-rowlink { text-decoration: none; }
+.pa-root .pb-rowlink::after { content: ""; position: absolute; inset: 0; }
+.pa-root .pb-table tbody tr:not(.zero):hover td { background: var(--surface-2); }
+.pa-root .pb-table tbody tr.zero { opacity: .45; }
+@media (max-width: 760px) {
+  .pa-root .pb-table th:nth-child(5), .pa-root .pb-table td.desc { display: none; }
+  .pa-root .projwide { min-width: 0; }
+  .pa-root .pb-table { font-size: 12.5px; }
+  .pa-root .pb-table th:nth-child(1) { width: 112px; }
+  .pa-root .pb-table th:nth-child(2), .pa-root .pb-table th:nth-child(3) { width: 58px; }
+  .pa-root .pb-table th:nth-child(4) { width: auto; }
+  .pa-root .pb-table th, .pa-root .pb-table td { padding-left: 4px; padding-right: 4px; }
+}
+
+/* ---------- 連線金鑰(/pa/connect)---------- */
+.pa-root .tokenfresh { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; margin-bottom: 14px; border-color: var(--accent); background: var(--accent-soft); }
+.pa-root .tokenrow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.pa-root .tokenrow code { flex: 1 1 260px; min-width: 0; padding: 6px 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; font-size: 12.5px; overflow-wrap: anywhere; }
+.pa-root .tokenfresh .btn-ghost { align-self: flex-start; }
+.pa-root .tokenform { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; padding: 14px 16px; }
+.pa-root .tokenform label { display: flex; flex-direction: column; gap: 4px; flex: 1 1 260px; font-size: 13px; color: var(--ink-soft); }
+.pa-root .tokenhead { font-size: 15px; margin: 22px 0 8px; }
+.pa-root .tokenlist { padding: 0; }
+.pa-root .tokenitem { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); }
+.pa-root .tokenitem:last-child { border-bottom: 0; }
+.pa-root .tokenitem .muted { font-size: 12px; }
+
+/* 退件紀錄:供應商更新日(PartDrawer 的 Resubmit) */
+.pa-root .resub { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 4px; font-size: 12px; color: var(--ink-soft); }
+.pa-root .resub.done { color: var(--success); }
+.pa-root .resub.late { color: var(--danger); font-weight: 600; }
+.pa-root .resub input[type="date"] { font-size: 12px; padding: 1px 4px; }
+
+/* ---------- SLA 設定(/pa/sla)---------- */
+.pa-root .slatable { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.pa-root .slatable th { text-align: left; font-size: 12px; font-weight: 600; color: var(--ink-soft); padding: 6px 8px; border-bottom: 1px solid var(--line-strong); white-space: nowrap; }
+.pa-root .slatable td { padding: 8px; border-bottom: 1px solid var(--line); }
+.pa-root .slatable .num { text-align: right; width: 96px; }
+.pa-root .slatable input { width: 72px; text-align: right; }
+@media (max-width: 640px) {
+  .pa-root .slatable th:nth-child(3), .pa-root .slatable td:nth-child(3) { display: none; }
+}
+/* 階段表:「不需PA」上面的「流程外」分隔列 */
+.pa-root .pb-table tbody tr.pb-sep td { padding: 10px 8px 2px; font-size: 11px; color: var(--ink-faint); border-bottom: 1px dashed var(--line-strong); background: none; }
+
+/* 供應商清單 */
+.pa-root .suptable td { vertical-align: top; }
+.pa-root .suptable .sup-mails { white-space: pre-line; word-break: break-all; font-size: 13px; }
+.pa-root .suptable .sup-act { white-space: nowrap; text-align: right; }
+.pa-root .supform { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+.pa-root .supform label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--ink-soft); }
+.pa-root .supform label.wide { grid-column: 1 / -1; }
+.pa-root .supform input, .pa-root .supform textarea { font: inherit; font-size: 14px; color: var(--ink); }
+@media (max-width: 640px) { .pa-root .supform { grid-template-columns: 1fr; } }
+.pa-root .toolbar .tb-break { flex-basis: 100%; height: 0; }
+
+/* ---- 進度趨勢 ---- */
+.pa-root .trend .kpis { padding: 0 0 12px; }
+.pa-root .trend-card { padding: 12px 14px 10px; margin-bottom: 14px; }
+.pa-root .trend-bar { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.pa-root .trend-ranges, .pa-root .trend-legend { display: flex; gap: 4px; flex-wrap: wrap; }
+.pa-root .trend-legend .btn i, .pa-root .trend-tip i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
+.pa-root .trend-legend .btn.off { opacity: .45; text-decoration: line-through; }
+.pa-root .trend-chart { position: relative; }
+.pa-root .trend-chart svg { display: block; width: 100%; height: auto; }
+.pa-root .trend-tip { position: absolute; top: 6px; transform: translateX(8px); background: var(--surface); border: 1px solid var(--line-strong); border-radius: 8px; padding: 6px 9px; font-size: 12px; line-height: 1.5; pointer-events: none; box-shadow: var(--shadow); white-space: nowrap; z-index: 2; }
+.pa-root .trend-tip b { display: block; margin-bottom: 2px; }
+.pa-root .trend-note { margin: 6px 0 0; font-size: 11.5px; color: var(--ink-faint); }
+.pa-root .trend-table { overflow-x: auto; max-height: 480px; overflow-y: auto; }
+.pa-root .trend-table table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.pa-root .trend-table th, .pa-root .trend-table td { padding: 6px 10px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+.pa-root .trend-table th { position: sticky; top: 0; background: var(--surface-2); color: var(--ink-soft); font-size: 11.5px; }
+.pa-root .trend-table .num { text-align: right; }
+.pa-root .trend-table .bad { color: var(--danger); font-weight: 700; }
+.pa-root .trend-diff { color: var(--ink-soft); white-space: normal !important; }
+@media (max-width: 640px) { .pa-root .trend-tip { font-size: 11px; } }
+
+/* 階段表的橢圓標籤一樣寬(字數不同也對齊),置中 */
+.pa-root .pb-table .phase-chip { display: inline-block; width: 9.5em; text-align: center; box-sizing: border-box; }

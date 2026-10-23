@@ -1,0 +1,58 @@
+@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap");
+
+:root {
+  --paper: #eef0ea; --surface: #ffffff; --surface-2: #f7f8f4;
+  --ink: #1f241f; --ink-soft: #5c6459; --ink-faint: #8c9488;
+  --line: #d7ddd0; --line-strong: #b9c2b0;
+  --accent: #cc8b1f; --accent-ink: #3d2907; --accent-soft: #f3e2b8; --accent-strong: #a86e12; --accent-on-soft: #6b4a10;
+  --success: #3f7d5c; --success-soft: #dbe9db;
+  --danger: #b64534; --danger-soft: #f3ddd6;
+  --hold: #6d6a8f; --hold-soft: #e2e1ee;
+  --critical: #e0332a; --critical-soft: #f8ddda;
+  --starttoday: #2f6fb0; --starttoday-soft: #dbe7f3;
+  --shadow: 0 1px 2px rgba(31,36,31,.06), 0 6px 20px rgba(31,36,31,.06);
+  /* The undo toast is always a dark chip, in either theme — like a snackbar,
+     not a themed panel — so these three hold the same value everywhere below
+     too. They're just the dark theme's own surface/ink/accent, reused so the
+     pairing is already known to contrast well together. */
+  --toast-bg: #1c221b; --toast-ink: #e9ede4; --toast-accent: #e0a53c;
+  --font-display: "Noto Sans TC", system-ui, sans-serif;
+  --font-body: "Noto Sans TC", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", "Noto Sans TC", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #141813; --surface: #1c221b; --surface-2: #20261f;
+    --ink: #e9ede4; --ink-soft: #b7bfae; --ink-faint: #7c8577;
+    --line: #333c30; --line-strong: #46503f;
+    --accent: #e0a53c; --accent-ink: #2b1e07; --accent-soft: #4a3a17; --accent-strong: #f0b74e; --accent-on-soft: #f0b74e;
+    --success: #6fbf94; --success-soft: #20362b;
+    --danger: #e08072; --danger-soft: #40241d;
+    --hold: #a6a2d6; --hold-soft: #302d4a;
+    --critical: #ff5b4f; --critical-soft: #4d211d;
+    --starttoday: #6fa8e0; --starttoday-soft: #1c2e40;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+    --toast-bg: #1c221b; --toast-ink: #e9ede4; --toast-accent: #e0a53c;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #141813; --surface: #1c221b; --surface-2: #20261f;
+  --ink: #e9ede4; --ink-soft: #b7bfae; --ink-faint: #7c8577;
+  --line: #333c30; --line-strong: #46503f;
+  --accent: #e0a53c; --accent-ink: #2b1e07; --accent-soft: #4a3a17; --accent-strong: #f0b74e; --accent-on-soft: #f0b74e;
+  --success: #6fbf94; --success-soft: #20362b;
+  --danger: #e08072; --danger-soft: #40241d;
+  --hold: #a6a2d6; --hold-soft: #302d4a;
+  --critical: #ff5b4f; --critical-soft: #4d211d;
+  --starttoday: #6fa8e0; --starttoday-soft: #1c2e40;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+  --toast-bg: #1c221b; --toast-ink: #e9ede4; --toast-accent: #e0a53c;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--paper); color: var(--ink); font-family: var(--font-body);
+  font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased;
+}
+/* Fixed viewport height so the timeline scrolls inside .gantt-scroll instead of
+   growing the page and pushing its horizontal scrollbar below the fold. */

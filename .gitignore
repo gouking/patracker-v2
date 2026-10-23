@@ -1,0 +1,11 @@
+node_modules/
+.next/
+data/*.db*
+.env.local
+
+.env*.local
+*.tsbuildinfo
+next-env.d.ts
+*.log
+# 檢查用的真實 BOM PDF 留在本機就好(裡面是客戶的料號清單)
+data/fixtures/*.pdf
