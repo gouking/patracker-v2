@@ -89,7 +89,9 @@ export async function listParts(projectId: string, today = todayIn(TIMEZONE)): P
   return parts.map((p) => {
     const iss = (issues.get(p.id) ?? []).map(lite);
     const pending_owner = pend.get(p.id);
-    return { ...p, issues: iss, recent_notes: notes.get(p.id) ?? [], ev: evalPart(p, iss, sla, today), ...(pending_owner ? { pending_owner } : {}) };
+    // 預約給「被邀請、還沒上線」的 RD 也算有 RD owner(不用 RD 審的判斷要看這個)
+    const pp: Part = pending_owner?.rd_owner ? { ...p, rd_owner_pending: true } : p;
+    return { ...pp, issues: iss, recent_notes: notes.get(p.id) ?? [], ev: evalPart(pp, iss, sla, today), ...(pending_owner ? { pending_owner } : {}) };
   });
 }
 
@@ -125,7 +127,7 @@ export async function projectStats(
   type Row = Pick<
     Part,
     | "project_id" | "part_type" | "pa_start" | "supplier_notified" | "docs_received" | "rd_review_start" | "qa_review_start" | "rd_pass" | "qa_pass"
-    | "plm_upload" | "plm_released" | "hold_reason" | "excluded" | "supplier_updated" | "supplier_updated_at"
+    | "plm_upload" | "plm_released" | "hold_reason" | "excluded" | "supplier_updated" | "supplier_updated_at" | "rd_owner" | "rd_owner_pending"
   > & {
     last_rd_issue: string | null; last_qa_issue: string | null; last_rd_resub: string | null; last_qa_resub: string | null;
     last_rd_created: string | null; last_qa_created: string | null;
@@ -134,7 +136,8 @@ export async function projectStats(
   const rows = await db.all<Row>(
     `select p.project_id, p.part_type, p.pa_start, p.supplier_notified, p.docs_received,
             p.rd_review_start, p.qa_review_start, p.rd_pass, p.qa_pass, p.plm_upload, p.plm_released, p.hold_reason, p.excluded,
-            p.supplier_updated, p.supplier_updated_at,
+            p.supplier_updated, p.supplier_updated_at, p.rd_owner,
+            exists (select 1 from pa_pending_owners o where o.part_id = p.id and o.field = 'rd_owner') as rd_owner_pending,
             i.last_rd_issue, i.last_qa_issue, i.last_rd_resub, i.last_qa_resub, i.last_rd_created, i.last_qa_created,
             g.supplier_notified as sla_supplier_notified, g.docs_std, g.docs_custom, g.rd_pass as sla_rd_pass, g.qa_pass as sla_qa_pass,
             g.supplier_update as sla_supplier_update, g.rereview as sla_rereview
@@ -206,7 +209,8 @@ export async function partRow(a: Access, partId: string, today = todayIn(TIMEZON
   ]);
   const iss = issues.map(lite);
   const pending_owner = pend.get(partId);
-  return { ...p, issues: iss, recent_notes: notes, ev: evalPart(p, iss, sla, today), ...(pending_owner ? { pending_owner } : {}) };
+  const pp: Part = pending_owner?.rd_owner ? { ...p, rd_owner_pending: true } : p;
+  return { ...pp, issues: iss, recent_notes: notes, ev: evalPart(pp, iss, sla, today), ...(pending_owner ? { pending_owner } : {}) };
 }
 
 async function getPartIn(a: Access, partId: string): Promise<Part> {

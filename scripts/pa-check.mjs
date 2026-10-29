@@ -165,6 +165,46 @@ async function main() {
     pdfPart = pdfParts.find((p) => !p.excluded) ?? null;
   }
 
+  // ---------- 匯入 Agile 的 BOM .xls ----------
+  section("匯入 Agile PLM 的 BOM .xls");
+  {
+    const XLSX = await import("xlsx");
+    const Agile = await import("../src/server/pa/bomAgile.ts");
+    const H = ["Level", "Part Number", "Part Name / Description", "Lifecycle Phase", "Rev", "BOM.Find Num", "BOM.Quantity", "BOM.Ref Des", "Manufacturers.Mfr Name"];
+    const data = [
+      H,
+      ["0", "000-X100-000", "TOP ASM", "ES1", "X0.00*1  BDC-000001", "", "", "", ""],
+      ["1", "001-X100-000", "DRESS", "ES1", "X0.01*1", "1", "1", "", ""],
+      ["2", "1-051-0001-001", "PART A", "Part Approved", "", "2", "1", "", "菁英電子"],
+      ["2", "1-051-0002-001", "PART B", "Part Approved", "", "3", "2", "C1", ""],
+      ["2", "1-051-0002-101", "PART B ALT", "Part Approved", "", "3-1", "2", "C1", ""],
+      ["3", "1-051-0003-001", "PART C", "Part Approved", "", "1", "1", "", ""],
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(data), "Sheet0");
+    const out = XLSX.write(wb, { type: "buffer", bookType: "biff8" });
+    const ab = out.buffer.slice(out.byteOffset, out.byteOffset + out.byteLength);
+    ok("認得 .xls 檔頭", Agile.isXls(ab));
+    const r = Agile.parseAgileXls(ab);
+    ok("最上層組件 = Level 0", r.header.top_pn === "000-X100-000" && r.header.top_desc === "TOP ASM");
+    ok("解析出 5 列(不含 Level 0)", r.rows.length === 5, `${r.rows.length}`);
+    ok("主料料號 = 最上層組件", r.rows.every((x) => x.values.main_pn === "000-X100-000"));
+    ok("上一階依 Level 推出來", r.rows[2].values.parent_pn === "001-X100-000" && r.rows[4].values.parent_pn === "1-051-0002-101");
+    ok("3-1 標成 3 的替代料", r.rows[3].values.alt_of_pn === "1-051-0002-001");
+    ok("製造商帶進供應商、中文不亂碼", r.rows[1].values.supplier === "菁英電子");
+    ok("用量與 Ref Des 有帶", r.rows[2].values.qty === "2" && r.rows[2].values.ref_des === "C1");
+    // 同一顆料掛在兩個上階底下:匯入只取第一筆(不然會撞唯一鍵 23505)
+    const dup = [...data, ["3", "1-051-0001-001", "PART A", "Part Approved", "", "2", "1", "", ""]];
+    const wb2 = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb2, XLSX.utils.aoa_to_sheet(dup), "Sheet0");
+    const out2 = XLSX.write(wb2, { type: "buffer", bookType: "biff8" });
+    const rd = await Bom.parseImportFile(out2.buffer.slice(out2.byteOffset, out2.byteOffset + out2.byteLength));
+    ok("重複料號只留一筆並提醒", rd.rows.length === 5 && rd.warnings.some((w) => w.includes("1-051-0001-001")), `${rd.rows.length} 列`);
+    let bad = null;
+    try { Agile.parseAgileXls(new Uint8Array([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1, 0, 0]).buffer); } catch (e) { bad = e; }
+    ok("壞檔給清楚的錯誤", bad && /xls/.test(bad.message), bad?.message);
+  }
+
   // ---------- 逐欄權限 ----------
   section("誰能改哪一欄");
   const target = pdfPart ?? (await Parts.listParts(project.id)).find((p) => !p.excluded);
@@ -276,7 +316,10 @@ async function main() {
   ok("通知了還沒收齊 → 廠商準備資料", ph({ pa_start: "2026-01-05", supplier_notified: "2026-01-06" }) === "supplier");
   const docs = { pa_start: "2026-01-05", supplier_notified: "2026-01-06", docs_received: "2026-01-10" };
   ok("收齊、QA 還沒 pass → 待QA審核", ph(docs) === "review_qa");
-  ok("QA pass 了 → 才換待RD審核", ph({ ...docs, qa_pass: "2026-01-12" }) === "review_rd");
+  ok("QA pass 了、有 RD owner → 才換待RD審核", ph({ ...docs, qa_pass: "2026-01-12", rd_owner: "someone" }) === "review_rd");
+  ok("QA pass 了、沒有 RD owner → 直接可上PLM(不用 RD 審)", ph({ ...docs, qa_pass: "2026-01-12" }) === "plm_ready");
+  ok("預約給還沒上線的 RD 也算有 RD owner", ph({ ...docs, qa_pass: "2026-01-12", rd_owner_pending: true }) === "review_rd");
+  ok("RD 已經開始審 → 就算沒指定 owner 也要等 RD", ph({ ...docs, qa_pass: "2026-01-12", rd_review_start: "2026-01-13" }) === "review_rd");
   ok("QA 退件中 → 被QA退件(RD 不會先審)", ph(docs, [{ dept: "QA", date: "2026-01-11" }]) === "rework_qa");
   ok("RD 退件、QA pass → 被RD退件", ph({ ...docs, qa_pass: "2026-01-12" }, [{ dept: "RD", date: "2026-01-11" }]) === "rework_rd");
   ok("退件後 RD 重新開始 review → 回到待RD審核",
@@ -479,6 +522,16 @@ async function main() {
   await Parts.addIssue(aQa, real.id, sdB, "QA", "2026-02-10", "資料不全");
   await Parts.updatePartField(aSourcer, sourcer.id, sdB, "supplier_updated", "2026-02-10");
   ok("同一天:先記退件、後填更新 → 已送回(待QA審核)", (await Parts.partRow(aPm, sdB, "2026-02-11")).ev.phase === "review_qa", (await Parts.partRow(aPm, sdB, "2026-02-11")).ev.phase);
+  // 沒有 RD owner 的料:QA pass → 直接「可上PLM」並通知 Sourcer(不通知 RD 去審)
+  const noRd = blank[8].id;
+  await Parts.updatePartField(aPm, pm.id, noRd, "pa_start", "2026-02-01");
+  await Parts.updatePartField(aSourcer, sourcer.id, noRd, "supplier_notified", "2026-02-02");
+  await Parts.updatePartField(aSourcer, sourcer.id, noRd, "docs_received", "2026-02-03");
+  const evNoRd = await Parts.updatePartField(aQa, real.id, noRd, "qa_pass", "2026-02-05");
+  const rowNoRd = (await Parts.partRow(aPm, noRd, "2026-02-06")).ev;
+  ok("沒有 RD owner:QA pass → 可上PLM", rowNoRd.phase === "plm_ready" && rowNoRd.approved, rowNoRd.phase);
+  ok("通知 Sourcer 可上 PLM、不通知 RD", evNoRd.map((e) => e.kind).join() === "approved", evNoRd.map((e) => e.kind).join());
+  ok("RD pass 那一階不逾期、輪不到 RD", rowNoRd.rd_pass.light === null && !rowNoRd.waitingOn.includes("rd"));
   await Parts.updatePartField(aSourcer, sourcer.id, su, "supplier_updated", "");
   ok("清掉 → 又在等供應商", (await Parts.partRow(aPm, su)).ev.supplier_update.dept === "QA");
   await P.setMemberRoles(aPm, real.id, ["sourcer"]);

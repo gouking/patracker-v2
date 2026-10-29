@@ -55,7 +55,7 @@ export default function ImportBom({ projectId }: { projectId: string }) {
       <div className="row">
         <input
           type="file"
-          accept=".xlsx,.pdf"
+          accept=".xlsx,.xls,.pdf"
           onChange={(e) => {
             const f = e.target.files?.[0] ?? null;
             setFile(f);

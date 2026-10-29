@@ -13,6 +13,7 @@ import { HttpError, getSla, listMembers, requireManage, type Access } from "./pr
 import { listParts, TIMEZONE } from "./parts";
 import { FIELDS, HOLD_REASONS, OWNER_ROLE, PHASES, PHASE_BY_KEY, SLA_FIELDS, STAGES, slaColumn, isDate, todayIn, type FieldDef, type Issue, type Part } from "@/lib/pa";
 import { BomPdfError, parseBomPdf, type PdfHeader } from "./bomPdf";
+import { isXls, parseAgileXls } from "./bomAgile";
 import type { PaEvent } from "./notify";
 
 // 以檔案為準的欄位（PDF 專屬的結構欄位也算，但只有解析結果裡有的才會動到）
@@ -433,16 +434,28 @@ async function plan(a: Access, userId: string, parsed: ParseResult): Promise<Pla
 
 const isPdf = (buf: ArrayBuffer) => new TextDecoder().decode(new Uint8Array(buf, 0, Math.min(5, buf.byteLength))) === "%PDF-";
 
-/** Excel（PA tracker / BOM 表）或 PLM 匯出的 BOM PDF，兩種都吃。 */
+/** Excel（PA tracker / BOM 表）、PLM 匯出的 BOM PDF、Agile PLM 匯出的 BOM .xls，都吃。 */
 export async function parseImportFile(buf: ArrayBuffer): Promise<ParseResult> {
-  if (!isPdf(buf)) return parseWorkbook(buf);
+  const xls = isXls(buf);
+  if (!xls && !isPdf(buf)) return parseWorkbook(buf);
   let header, rows, warnings;
   try {
-    ({ header, rows, warnings } = await parseBomPdf(buf));
+    ({ header, rows, warnings } = xls ? parseAgileXls(buf) : await parseBomPdf(buf));
   } catch (e) {
     if (e instanceof BomPdfError) throw new HttpError(400, e.message);
     throw e;
   }
+  // 同一顆料掛在不同上階底下會出現好幾次，PA 一顆料只追蹤一筆（主料+料號是唯一鍵），只取第一次
+  const seenPn = new Set<string>();
+  rows = rows.filter((r) => {
+    const pn = r.values.part_pn ?? "";
+    if (seenPn.has(pn)) {
+      warnings.push(`${pn} 在 BOM 裡出現多次（不同上階），只取第一筆`);
+      return false;
+    }
+    seenPn.add(pn);
+    return true;
+  });
   return {
     source: "pdf",
     sheet: `${header.top_pn} ${header.top_desc}`.trim(),

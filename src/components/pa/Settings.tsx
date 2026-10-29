@@ -60,6 +60,9 @@ export default function Settings(props: {
 
   const candidates = useMemo(() => props.users.filter((u) => !members.some((m) => m.user_id === u.id)), [props.users, members]);
 
+  // 頁面資料是用戶端載入的,router.refresh() 不會更新 props,封存狀態自己記著
+  const [archived, setArchived] = useState(props.project.archived);
+
   async function act(fn: () => Promise<void>, ok: string) {
     setMsg({});
     try {
@@ -202,15 +205,15 @@ export default function Settings(props: {
           <span className="spacer" style={{ flex: 1 }} />
           <button
             className="btn btn-ghost"
-            onClick={() => act(async () => { await api(base, { method: "PATCH", json: { archived: !props.project.archived } }); router.refresh(); }, props.project.archived ? "已取消封存" : "已封存（不再寄逾期信）")}
+            onClick={() => act(async () => { await api(base, { method: "PATCH", json: { archived: !archived } }); setArchived(!archived); }, archived ? "已取消封存" : "已封存（不再寄逾期信）")}
           >
-            {props.project.archived ? "取消封存" : "封存專案"}
+            {archived ? "取消封存" : "封存專案"}
           </button>
           {props.isAdmin && (
             <button
               className="btn btn-ghost btn-danger"
-              disabled={!props.project.archived}
-              title={props.project.archived ? undefined : "請先封存專案再刪除"}
+              disabled={!archived}
+              title={archived ? undefined : "請先封存專案再刪除"}
               onClick={() =>
                 confirm(`永久刪除「${props.project.name}」？\n料號、成員、SLA、歷程會一起刪掉，無法從介面還原。`) &&
                 act(async () => { await api(base, { method: "DELETE" }); router.push("/pa"); }, "已刪除")

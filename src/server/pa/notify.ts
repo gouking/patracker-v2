@@ -16,7 +16,7 @@ import { db, now } from "./db";
 import { getUsersByIds } from "./auth";
 import { isPendingId, pendingForParts, virtualMembers, virtualUsers, withPending } from "./pending";
 import { APP_BASE, MAIL_FROM, mailer, smtpReady } from "./mail";
-import { ESCALATE_AT, isDate, routeTo, type Part, type Role } from "@/lib/pa";
+import { ESCALATE_AT, isDate, rdNeeded, routeTo, type Part, type Role } from "@/lib/pa";
 
 export type PaEventKind = "start" | "docs" | "qa_pass" | "approved" | "escalate:RD" | "escalate:QA";
 
@@ -32,9 +32,10 @@ export function fieldEvents(before: Part, key: string, value: string | null): Pa
   const out: PaEvent[] = [];
   if (became("pa_start")) out.push({ kind: "start", partId: before.id });
   if (became("docs_received")) out.push({ kind: "docs", partId: before.id });
-  if (became("qa_pass") && !isDate(after.rd_pass)) out.push({ kind: "qa_pass", partId: before.id });
-  const bothBefore = isDate(before.rd_pass) && isDate(before.qa_pass);
-  const bothAfter = isDate(after.rd_pass) && isDate(after.qa_pass);
+  // QA pass 之後輪到 RD 審;沒有 RD owner(不用 RD 審)的料就沒有這一步,直接是「可上 PLM」
+  if (became("qa_pass") && !isDate(after.rd_pass) && rdNeeded(after)) out.push({ kind: "qa_pass", partId: before.id });
+  const bothBefore = isDate(before.qa_pass) && (isDate(before.rd_pass) || !rdNeeded(before));
+  const bothAfter = isDate(after.qa_pass) && (isDate(after.rd_pass) || !rdNeeded(after));
   if (!bothBefore && bothAfter) out.push({ kind: "approved", partId: before.id });
   return out;
 }

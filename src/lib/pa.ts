@@ -89,6 +89,8 @@ export interface Part {
   sourcer_owner: string;
   /** 這顆料由哪一位 RD 在跟（同上；指定之後 RD 那一階的提醒只給他） */
   rd_owner: string;
+  /** 已預約給「被邀請、還沒建好帳號」的 RD(算有 RD owner;由 parts.ts 帶入,不是資料庫欄位) */
+  rd_owner_pending?: boolean;
   /** 承認樣品收到日（Sourcer／採購填） */
   sample_received: string | null;
   /** 供應商最近一次更新（補）資料的日期,Sourcer 回填。有退件時等於「供應商已送回」,
@@ -254,7 +256,22 @@ export const STAGES: Stage[] = [
 
 /** 這一階的起算日。RD 從 QA pass 起算;舊資料若 RD 比 QA 早 pass(當時是並行審),
  *  就沿用收齊資料當起點,免得被判成「完成日早於起算日」。 */
+/** 這顆料要不要 RD 審。沒有指定 RD owner(也沒預約)、RD 也沒動過(沒開始審、沒 pass、沒退件),
+ *  就當 RD 不用參與:QA review pass 之後直接進「可上PLM」,不再等 RD。
+ *  之後才指定 RD owner,就變回需要 RD 審。 */
+export function rdNeeded(part: Part, issues: IssueLite[] = []): boolean {
+  return (
+    Boolean(part.rd_owner) ||
+    Boolean(part.rd_owner_pending) ||
+    isDate(part.rd_review_start) ||
+    isDate(part.rd_pass) ||
+    issues.some((i) => i.dept === "RD")
+  );
+}
+
 export function stageStart(part: Part, stage: Stage, issues: IssueLite[] = []): string | null {
+  // 不用 RD 審的料,RD pass 這一階不存在:沒有起算日、不會逾期
+  if (stage.key === "rd_pass" && !rdNeeded(part, issues)) return null;
   let base: string | null;
   if (stage.key === "rd_pass") {
     const qa = part.qa_pass;
@@ -428,6 +445,7 @@ export function evalRereview(
   if (part.excluded || isDate(part.plm_upload) || isDate(part.plm_released) || part.hold_reason === "待RD圖面進版") return worst;
   for (const dept of (only ? [only] : ["QA", "RD"]) as Issue["dept"][]) {
     if (isDate(dept === "RD" ? part.rd_pass : part.qa_pass)) continue;
+    if (dept === "RD" && !rdNeeded(part, issues)) continue;
     let last: IssueLite | null = null;
     for (const i of issues) if (i.dept === dept && (!last || i.date >= last.date)) last = i;
     if (!last || pendingResubmit(part, issues, dept)) continue;
@@ -507,7 +525,7 @@ export const PHASES: PhaseDef[] = [
   { key: "review_rd", label: "待RD審核", owner: "RD", desc: "QA 已 pass，待 RD 審核（QA 審完才換 RD）" },
   { key: "rework_rd", label: "廠商資料更新（RD）", owner: "RD", desc: "被 RD 退件，廠商更新資料中（RD 追蹤，補件後 RD 複審）" },
   { key: "hold_ec", label: "待RD圖面進版", owner: "RD", desc: HOLD_HINT["待RD圖面進版"] },
-  { key: "plm_ready", label: "可上PLM", owner: "Sourcer", desc: "RD、QA 皆 pass，待上傳 PLM" },
+  { key: "plm_ready", label: "可上PLM", owner: "Sourcer", desc: "QA、RD 皆 pass（沒有 RD owner 的料只看 QA pass），待上傳 PLM" },
   { key: "plm_signing", label: "PLM簽核", owner: "Sourcer", desc: "已上傳 PLM，簽核中" },
   { key: "done", label: "已完成", owner: "—", desc: "PLM Released（Part Approved）", tone: "good" },
   { key: "na", label: "不需PA", owner: "RD、PM", desc: "不追蹤（母階組件、預計移除 BOM / EOL / F/W）", tone: "muted" },
@@ -531,7 +549,8 @@ export function derivePhase(part: Part, issues: IssueLite[]): PhaseKey {
   if (isDate(part.plm_upload)) return "plm_signing";
   const rdOk = isDate(part.rd_pass);
   const qaOk = isDate(part.qa_pass);
-  if (rdOk && qaOk) return "plm_ready";
+  // QA pass 了,而且 RD 也 pass 了、或這顆料不用 RD 審(沒有 RD owner)→ 可上 PLM
+  if (qaOk && (rdOk || !rdNeeded(part, issues))) return "plm_ready";
   // 被退件、等廠商補件:負責追蹤的是退件的那個部門(QA／RD),不是 Sourcer。
   // 流程是 QA 先審、QA pass 之後才換 RD。有退件就代表資料收過了,就算「收齊資料」那格沒填也一樣
   if (!qaOk && inRework(part, issues, "QA")) return "rework_qa";
@@ -605,7 +624,7 @@ export function evalPart(part: Part, issues: IssueLite[], sla: Sla, today: strin
   // 還沒填屬性，收齊資料那一步算不出期限——要請 PM/RD 補
   const missingType = !part.part_type && isDate(part.supplier_notified);
   if (missingType) waitingOn.add("pm");
-  const approved = isDate(part.rd_pass) && isDate(part.qa_pass);
+  const approved = isDate(part.qa_pass) && (isDate(part.rd_pass) || !rdNeeded(part, issues));
   // PLM 那一段沒有 SLA,但一樣算「輪到 Sourcer」
   if (approved && !isDate(part.plm_released)) waitingOn.add("sourcer");
   if (part.hold_reason === "ISSUE") { waitingOn.add("pm"); waitingOn.add("rd"); }
