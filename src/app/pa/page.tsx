@@ -51,7 +51,7 @@ function Projects() {
           供應商清單
         </Link>
         {data?.me.isAdmin && (
-          <a className="btn btn-sm btn-ghost" href="/api/trackly-home?users=1" title="設定每個人的系統角色，例如 PM Head（看得到所有專案）">
+          <a className="btn btn-sm btn-ghost" href="/pa/users" title="設定每個人的系統角色，例如 PM Head（看得到所有專案）">
             使用者與角色
           </a>
         )}

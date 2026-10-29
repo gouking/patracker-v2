@@ -1,23 +1,22 @@
-// PA Tracker 的登入:完全沿用 Trackly 的帳號(跟舊的 patracker 同一套)。
+// PA Tracker 的登入:自己的帳號(patracker.db 的 users),不依賴 Trackly。
 //
-// Trackly 登入後發 `trackly_session` cookie(掛在 .orblab.app),這裡用同一把 SESSION_SECRET
-// 驗章;JWT 內帶 sid,每次都回 trackly.db 查 sessions 沒被撤銷、沒過期、帳號沒停用才算數。
-// 使用者資料(名字、email、角色)走 db.ts 掛進來的 profiles view(= trackly.db 的 users)。
+// 登入後發 `pa_session` cookie;JWT 內帶 sid,每次都回 sessions 表查沒被撤銷、沒過期、
+// 帳號沒停用才算數(account.ts)。使用者資料(名字、email、角色)走 db.ts 的 profiles view。
 //
 // 另外保留 web-gantt 版的「個人連線金鑰」(tokens.ts):別的程式(QA 電腦上的 map_system)
 // 用 Authorization: Bearer pa_… 代表某個人呼叫。
 
-import { jwtVerify } from "jose";
-import { db, sqliteConn } from "./db";
+import { db } from "./db";
+import { SESSION_COOKIE, cookieValue, readSessionToken } from "./account";
 import { TOKEN_PREFIX, userFromApiToken } from "./tokens";
 
-export const SESSION_COOKIE = "trackly_session";
+export { SESSION_COOKIE };
 
 export interface User {
   id: string;
   email: string;
   name: string;
-  /** 系統角色:admin / pm_head / pm_leader / pm / user / trial(Trackly users.role) */
+  /** 系統角色:admin / pm_head / pm_leader / pm / user / trial(users.role) */
   account_role: string;
   isAdmin: boolean;
   /** 看得到所有專案(唯讀):系統管理員或 PM Head。能不能改仍看專案角色 */
@@ -66,49 +65,10 @@ export async function listAllUsers(): Promise<User[]> {
 
 // ---------- session ----------
 
-let cachedSecret: Uint8Array | null = null;
-function secretKey(): Uint8Array {
-  if (cachedSecret) return cachedSecret;
-  const s = process.env.SESSION_SECRET;
-  if (!s && process.env.NODE_ENV === "production") {
-    // 沒設就用公開的預設值等於沒有簽章:寧可整個擋下來。
-    throw new Error("SESSION_SECRET 沒設定:必須跟 Trackly 用同一把隨機密鑰。");
-  }
-  return (cachedSecret = new TextEncoder().encode(s || "dev-insecure-secret-change-me"));
-}
-
-let warnedNoSessions = false;
-
-/** trackly.db 的 sessions 表裡這個 session 還有效嗎(沒撤銷、沒過期、帳號沒停用)。 */
-function sessionIsLive(sid: string, userId: string): boolean {
-  try {
-    const row = sqliteConn()
-      .prepare(
-        `select 1 as ok from trk.sessions s join trk.users u on u.id = s.user_id
-           where s.id = ? and s.user_id = ? and s.revoked_at is null and s.expires_at > ? and u.is_active = 1`
-      )
-      .get(sid, userId, new Date().toISOString());
-    return Boolean(row);
-  } catch (e) {
-    // 多半是 Trackly 還沒升級(沒有 sessions 表/is_active 欄):寧可拒絕,不放行。
-    if (!warnedNoSessions) {
-      warnedNoSessions = true;
-      console.error("[auth] 查 trackly.db 的 sessions 失敗,所有登入都會被拒絕。要先啟動升級後的 Trackly。", e instanceof Error ? e.message : e);
-    }
-    return false;
-  }
-}
-
 async function userFromCookie(jwt: string): Promise<User | null> {
-  try {
-    const { payload } = await jwtVerify(jwt, secretKey());
-    if (!payload.sub || typeof payload.sid !== "string") return null;
-    if (!sessionIsLive(payload.sid, payload.sub)) return null;
-    // 以 trackly.db 目前的資料為準:帳號被刪掉,舊 cookie 立刻失效
-    return getUserById(payload.sub);
-  } catch {
-    return null;
-  }
+  const s = await readSessionToken(jwt);
+  // 以資料庫目前的資料為準:帳號被刪掉,舊 cookie 立刻失效
+  return s ? getUserById(s.userId) : null;
 }
 
 /** token → 這個人是誰。認不得就 null,由呼叫端回 401。 */
@@ -118,31 +78,14 @@ export async function userFromToken(token: string): Promise<User | null> {
   return userFromCookie(token);
 }
 
-function cookieValue(req: Request, name: string): string {
-  const raw = req.headers.get("cookie") || "";
-  for (const part of raw.split(";")) {
-    const i = part.indexOf("=");
-    if (i > 0 && part.slice(0, i).trim() === name) return decodeURIComponent(part.slice(i + 1).trim());
-  }
-  return "";
-}
-
 function bearer(req: Request): string {
   const auth = req.headers.get("authorization") || "";
   return auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
 }
 
-/** API route 用:先看個人連線金鑰(Authorization),沒有再看 Trackly 的登入 cookie。 */
+/** API route 用:先看個人連線金鑰(Authorization),沒有再看登入 cookie。 */
 export async function apiUser(req: Request): Promise<User | null> {
   const b = bearer(req);
   if (b) return userFromToken(b);
   return userFromToken(cookieValue(req, SESSION_COOKIE));
-}
-
-/** Trackly 的網址(頂列「回 Trackly」與沒登入時的去處) */
-export function tracklyUrl(host: string): string {
-  const hostname = host.split(":")[0];
-  return hostname === "localhost" || hostname === "127.0.0.1"
-    ? `http://${hostname}:3000`
-    : process.env.TRACKLY_URL || "https://trackly.orblab.app";
 }

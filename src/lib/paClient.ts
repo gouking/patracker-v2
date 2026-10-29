@@ -1,10 +1,10 @@
 // PA Tracker 的瀏覽器端呼叫:統一處理錯誤訊息。
 //
-// 登入是 Trackly 發的 cookie(同網域,fetch 自動帶),不需要自己放 Authorization。
-// 401 = 沒登入或過期 → 導去 /api/login-redirect,它會轉去 Trackly 登入、登入後回到這一頁。
+// 登入 cookie(pa_session)是本站發的,fetch 自動帶,不需要自己放 Authorization。
+// 401 = 沒登入或過期 → 導去 /pa/login,登入後回到這一頁。
 
 function toLogin(): never {
-  window.location.href = `/api/login-redirect?next=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+  window.location.href = `/pa/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`;
   throw new Error("登入已過期");
 }
 

@@ -1,6 +1,6 @@
 // 首頁「今日概況」上那一區 PA 摘要的數字。唯讀、只回登入者自己的。
 //
-// Trackly 的首頁從另一個 port(或另一個子網域)打過來,帶的是 Trackly 的登入 cookie,
+// 別的站(例如日後同一台主機上的 Trackly 首頁)可以跨 port 來拿;帶的是本站的登入 cookie,
 // 所以要 CORS:只放行同一台主機(內網 IP 直連)與 *.orblab.app 的 https。
 
 import { apiUser } from "@/server/pa/auth";

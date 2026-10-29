@@ -1,8 +1,7 @@
 // PA Tracker 的整套檢查:權限、匯入(Excel 與 PLM 的 BOM PDF)、
 // 紅黃燈、批次、不追蹤、匯出、每日信。
 //
-// 全部在暫時資料夾裡的兩個 SQLite 檔跑(PA 資料庫與一份假的 trackly.db),跑完整個刪掉,
-// **不會碰到正式的 patracker.db 或 trackly.db**。
+// 全部在暫時資料夾裡的 SQLite 檔跑,跑完整個刪掉,**不會碰到正式的 patracker.db**。
 //
 // 跑法:
 //   npm run check:pa
@@ -20,7 +19,6 @@ register("./pa-alias-loader.mjs", import.meta.url);
 
 const TMP = mkdtempSync(join(tmpdir(), "pa-check-"));
 process.env.DB_PATH = join(TMP, "patracker.db");
-process.env.TRACKLY_DB = join(TMP, "trackly.db");
 // 這支腳本不寄信
 process.env.SMTP_HOST = "";
 
@@ -41,14 +39,13 @@ async function rejects(label, fn, status) {
 }
 
 async function main() {
-  // ---------- 假的 trackly.db:成員名單、每日信要查得到人 ----------
-  const real = { id: randomUUID(), email: "real@example.com", name: "Real User", role: "admin" };
-  const trk = new DatabaseSync(process.env.TRACKLY_DB);
-  trk.exec("create table users (id text primary key, email text, name text, role text, is_active integer default 1)");
-  trk.prepare("insert into users (id, email, name, role) values (?,?,?,?)").run(real.id, real.email, real.name, real.role);
-  trk.close();
-
   const { db } = await import("../src/server/pa/db.ts");
+  // ---------- 一個真的帳號:成員名單、每日信要查得到人 ----------
+  const real = { id: randomUUID(), email: "real@example.com", name: "Real User", role: "admin" };
+  await db.run(
+    "insert into users (id, email, password_hash, name, role, created_at, updated_at) values (?,?,?,?,?,?,?)",
+    [real.id, real.email, "none$x", real.name, real.role, "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z"]
+  );
   const P = await import("../src/server/pa/projects.ts");
   const Parts = await import("../src/server/pa/parts.ts");
   const Bom = await import("../src/server/pa/bom.ts");

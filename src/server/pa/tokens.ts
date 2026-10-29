@@ -64,6 +64,9 @@ export async function userFromApiToken(raw: string): Promise<User | null> {
     [now(), hash(raw)]
   );
   if (!row) return null;
+  // 帳號停用後,他的連線金鑰也跟著失效
+  const active = await db.get("select 1 from users where id = ? and is_active = 1", [row.user_id]);
+  if (!active) return null;
   const u = await getUserById(row.user_id);
   return u ? { ...u, viaToken: true } : null;
 }

@@ -2,7 +2,12 @@
 
 import Link from "next/link";
 
-/** 頂列:回 Trackly、品牌、麵包屑、目前使用者。 */
+async function signOut() {
+  await fetch("/api/auth/signout", { method: "POST" }).catch(() => {});
+  window.location.href = "/pa/login";
+}
+
+/** 頂列:品牌、麵包屑、目前使用者(帳號設定、登出)。 */
 export default function PaTopBar({
   me,
   crumb,
@@ -17,14 +22,6 @@ export default function PaTopBar({
   return (
     <div className="topbar">
       <div className="topbar-row">
-        {/* 放最左邊:離「上一層」的直覺位置最近,也不會跟右邊的操作按鈕擠在一起 */}
-        <a className="btn btn-ghost btn-sm backlink" href="/api/trackly-home" title="回 Trackly" aria-label="回 Trackly">
-          <svg viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M2 7.2 8 2.2l6 5" />
-            <path d="M3.4 6.6V13.3h9.2V6.6" />
-            <path d="M6.6 13.3V9.4h2.8v3.9" />
-          </svg>
-        </a>
         <Link href="/pa" className="wordmark">
           <span className="mark" />
           <b>PA Tracker</b>
@@ -39,7 +36,12 @@ export default function PaTopBar({
                 {r}
               </span>
             ))}
-            <span>{me?.name}</span>
+            <Link href="/pa/account" title="改密碼、登出所有裝置">
+              {me?.name ?? "帳號"}
+            </Link>
+            <button className="btn btn-ghost btn-sm" onClick={signOut}>
+              登出
+            </button>
           </div>
         </div>
       </div>

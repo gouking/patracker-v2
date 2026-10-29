@@ -4,9 +4,9 @@
 // all / get / run / tx 四個方法,全部回傳 Promise。底層 SQLite 是同步的,
 // 這裡只是把結果包成 Promise,讓 src/server/pa/ 其他檔案一字不改。
 //
-// 使用者資料不存在這裡:Trackly 的 trackly.db 以 ATTACH 掛進來(別名 trk),
-// 再建一個暫時的 view 叫 profiles —— web-gantt 的 SQL 都是對 public.profiles 查的,
-// 有了這個 view 就不必改。trackly.db 只讀,不寫(登出撤銷 session 另外處理,見 auth.ts)。
+// 帳號也在同一個檔案(users / sessions …,見 accountSchema.ts),不依賴 Trackly。
+// 另建一個暫時的 view 叫 profiles —— web-gantt 的 SQL 都是對 public.profiles 查的,
+// 有了這個 view 就不必改。
 //
 // 延遲初始化:模組載入時不開檔(next build 會逐一評估每個 route 模組)。
 // Next 開發模式會重複載入模組 → 用 globalThis 快取單例。
@@ -15,6 +15,7 @@ import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import path from "node:path";
 import { PA_SCHEMA_STEPS } from "./schema";
+import { ACCOUNT_SCHEMA } from "./accountSchema";
 
 export interface Db {
   all<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T[]>;
@@ -25,7 +26,6 @@ export interface Db {
 }
 
 const DB_PATH = process.env.DB_PATH || "patracker.db";
-export const TRACKLY_DB = process.env.TRACKLY_DB || "D:/Claude/trackly/data/trackly.db";
 
 /** 這一版不需要外部資料庫連線,恆為 true(保留名稱是為了讓呼叫端不用改)。 */
 export const paDbConfigured = true;
@@ -83,15 +83,8 @@ function open(): DatabaseSync {
     }
   }
 
-  // 掛上 Trackly 的使用者資料(唯讀用途)。檔案不存在時不擋啟動,只是查 profiles 會失敗。
-  if (fs.existsSync(TRACKLY_DB)) {
-    sqlite.exec(`ATTACH DATABASE '${TRACKLY_DB.replace(/'/g, "''")}' AS trk`);
-    sqlite.exec(
-      "CREATE TEMP VIEW IF NOT EXISTS profiles AS SELECT id, email, name, role FROM trk.users"
-    );
-  } else {
-    console.error(`[pa] 找不到 Trackly 資料庫 ${TRACKLY_DB}:使用者名稱與登入都會失敗`);
-  }
+  sqlite.exec(ACCOUNT_SCHEMA);
+  sqlite.exec("CREATE TEMP VIEW IF NOT EXISTS profiles AS SELECT id, email, name, role FROM main.users");
   return sqlite;
 }
 

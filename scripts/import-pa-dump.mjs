@@ -6,11 +6,12 @@
 // 執行:
 //   node --experimental-strip-types --no-warnings scripts/import-pa-dump.mjs <dump 檔> [--dry]
 //   例:... D:\Claude\web-gantt-backups\daily\web-gantt_2026-10-23_0300.dump --dry
-//   環境變數:DB_PATH(預設 data/patracker.db)、TRACKLY_DB(用來檢查使用者 id 對不對得上)、PG_BIN
+//   環境變數:DB_PATH(預設 data/patracker.db)、PG_BIN
 //
-// 使用者 id:PA 的 owner、成員、建立者存的都是 Supabase profiles.id。
-// Trackly 的 import-pg-dump.mjs 匯入 users 時保留同一個 id,所以這邊的 id 原封不動就對得上;
-// **前提是 Trackly 先用同一份備份匯入過**。跑完會列出對不到 Trackly 使用者的 id 供你檢查。
+// 帳號:備份裡的 profiles 一併匯入本站的 users,保留同一個 id(PA 的 owner、成員、建立者
+// 存的都是這個 id)。密碼不在備份裡:新帳號一律「尚未設定密碼」,要本人用忘記密碼收信設定;
+// 本站已經有的帳號(同一個 id)只更新 email/姓名/角色,密碼與停用狀態保留。
+// 帳號不會被刪:在本站自行註冊、備份裡沒有的人照樣留著。
 //
 // 兩個日誌表(pa_digest_log / pa_notify_log / pa_supplier_chase_log)也會一起搬:
 // 少了它們,新主機一啟動就會把「今天已寄過」的逾期信和即時通知再寄一次。
@@ -20,10 +21,10 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { PA_SCHEMA_STEPS } from "../src/server/pa/schema.ts";
+import { ACCOUNT_SCHEMA } from "../src/server/pa/accountSchema.ts";
 
 const PG_BIN = process.env.PG_BIN || "C:\\Program Files\\PostgreSQL\\18\\bin";
 const DB_FILE = path.resolve(process.env.DB_PATH || path.join("data", "patracker.db"));
-const TRACKLY_DB = process.env.TRACKLY_DB || "D:/Claude/trackly/data/trackly.db";
 
 const args = process.argv.slice(2);
 const dry = args.includes("--dry");
@@ -100,6 +101,7 @@ if (existed && !dry) {
 
 const db = new DatabaseSync(dry && !existed ? ":memory:" : DB_FILE);
 db.exec("PRAGMA foreign_keys = OFF");
+db.exec(ACCOUNT_SCHEMA);
 for (const step of PA_SCHEMA_STEPS) {
   if ("sql" in step) db.exec(step.sql);
   else {
@@ -152,20 +154,19 @@ for (const [t, ...fields] of [
     for (const r of p.block.rows) note(r[i], `${t}.${f}`);
   }
 }
-let known = null;
-if (fs.existsSync(TRACKLY_DB)) {
-  const trk = new DatabaseSync(TRACKLY_DB, { readOnly: true });
-  known = new Set(trk.prepare("select id from users").all().map((r) => r.id));
-  trk.close();
-}
-if (known) {
-  const missing = [...ids].filter(([id]) => !known.has(id));
-  console.log(`\n使用者 id 檢查:共 ${ids.size} 個,Trackly(${TRACKLY_DB})裡找不到 ${missing.length} 個`);
-  for (const [id, where] of missing.slice(0, 10)) console.log(`  ${id}  ← ${[...where].join(", ")}`);
-  if (missing.length) console.log("  → 多半是 Trackly 還沒用同一份備份匯入;匯入後再跑一次。");
-} else {
-  console.log(`\n(找不到 ${TRACKLY_DB},略過使用者 id 檢查)`);
-}
+// 帳號:備份裡的 profiles
+const prof = src.get("profiles");
+const profRows = (prof?.rows ?? []).map((r) => Object.fromEntries(prof.cols.map((c, i) => [c, r[i]])));
+const known = new Set([
+  ...profRows.map((r) => r.id),
+  ...db.prepare("select id from users").all().map((r) => r.id),
+]);
+console.log(`
+帳號:備份裡 ${profRows.length} 個(本站現有 ${db.prepare("select count(*) as n from users").get().n} 個)`);
+// pa_part_history 的 user_id = "import" 是 BOM 匯入的標記,不是帳號
+const missing = [...ids].filter(([id]) => !known.has(id) && id !== "import");
+console.log(`使用者 id 檢查:共 ${ids.size} 個,對不到帳號的 ${missing.length} 個`);
+for (const [id, where] of missing.slice(0, 10)) console.log(`  ${id}  ← ${[...where].join(", ")}`);
 
 if (dry) {
   console.log("\n--dry:沒有寫入任何東西。");
@@ -177,6 +178,17 @@ if (dry) {
 const intCols = new Map();
 db.exec("BEGIN IMMEDIATE");
 try {
+  // 帳號:新的插入(尚未設定密碼),已有的只更新 email/姓名/角色
+  const upsert = db.prepare(
+    `insert into users (id, email, password_hash, name, role, created_at, updated_at, is_active)
+     values (?,?,?,?,?,?,?,1)
+     on conflict(id) do update set email = excluded.email, name = excluded.name, role = excluded.role, updated_at = excluded.updated_at`
+  );
+  const nowIso = new Date().toISOString();
+  for (const r of profRows) {
+    upsert.run(r.id, (r.email || "").trim().toLowerCase(), "none$no-password-set", (r.name || "").trim(), r.role || "user", r.created_at || nowIso, nowIso);
+  }
+  console.log(`  寫入 users: ${profRows.length} 筆`);
   for (const { t } of [...plan].reverse()) db.exec(`delete from ${t}`);
   for (const { t, block, cols } of plan) {
     if (!block || !block.rows.length) continue;
@@ -210,6 +222,9 @@ function isIntCol(t, c) {
 }
 
 console.log("\n結果(筆數):");
+const nUsers = db.prepare("select count(*) as n from users").get().n;
+const nNoPw = db.prepare("select count(*) as n from users where password_hash not like 'scrypt$%'").get().n;
+console.log(`  users: ${nUsers}(其中尚未設定密碼 ${nNoPw})`);
 for (const t of TABLES) {
   const n = db.prepare(`select count(*) as n from ${t}`).get().n;
   const expected = src.get(t)?.rows.length ?? 0;

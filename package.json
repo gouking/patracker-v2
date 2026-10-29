@@ -8,6 +8,7 @@
     "start": "next start -p 3200",
     "lint": "eslint",
     "check:pa": "node --experimental-strip-types --no-warnings scripts/pa-check.mjs",
+    "check:auth": "node --experimental-strip-types --no-warnings scripts/auth-check.mjs",
     "check:scheduler": "node --experimental-strip-types --no-warnings scripts/scheduler-check.mjs",
     "build:schema": "node scripts/build-schema.mjs"
   },

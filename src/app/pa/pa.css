@@ -58,7 +58,7 @@
 .pa-root .backlink { display: inline-flex; align-items: center; margin-right: 4px; padding: 5px 10px 5px 3px; border-right: 1px solid var(--line); border-radius: 0; }
 .pa-root .backlink svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 .pa-root .wordmark { display: flex; align-items: center; gap: 7px; text-decoration: none; }
-.pa-root .wordmark .mark { width: 9px; height: 9px; border-radius: 2px; background: var(--accent); transform: rotate(45deg); }
+.pa-root .wordmark .mark, .pa-root .authbox .mark { width: 9px; height: 9px; border-radius: 2px; background: var(--accent); transform: rotate(45deg); }
 .pa-root .wordmark b { font-weight: 800; font-size: 15px; }
 .pa-root .crumb { color: var(--ink-faint); font-size: 13px; display: flex; align-items: center; gap: 8px; min-width: 0; }
 .pa-root .crumb strong { color: var(--ink); font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -380,3 +380,24 @@ body.pa-resizing { cursor: col-resize; user-select: none; }
 
 /* 階段表的橢圓標籤一樣寬(字數不同也對齊),置中 */
 .pa-root .pb-table .phase-chip { display: inline-block; width: 9.5em; text-align: center; box-sizing: border-box; }
+
+/* 登入/註冊/忘記密碼/重設密碼/帳號設定 */
+.pa-root .authwrap { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; }
+.pa-root .authbox { width: 100%; max-width: 380px; padding: 24px 22px; display: flex; flex-direction: column; gap: 12px; }
+.pa-root .authbox h1 { margin: 0; font-size: 20px; }
+.pa-root .authbox .brand { display: flex; align-items: center; gap: 8px; font-weight: 800; }
+.pa-root .authbox label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--ink-soft); }
+.pa-root .authbox input { width: 100%; font-size: 14px; padding: 8px 10px; }
+.pa-root .authbox .btn { justify-content: center; }
+.pa-root .authlinks { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 13px; }
+.pa-root .authlinks button { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font: inherit; }
+.pa-root .authnote { font-size: 12.5px; color: var(--ink-faint); line-height: 1.5; }
+.pa-root .acctgrid { display: grid; gap: 16px; max-width: 460px; }
+.pa-root .acctgrid form { padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.pa-root .acctgrid label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.pa-root .usertable { width: 100%; border-collapse: collapse; font-size: 13px; }
+.pa-root .usertable th, .pa-root .usertable td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.pa-root .usertable tr.off td { opacity: .55; }
+.pa-root .usertable .nopw { color: var(--hold); font-size: 12px; white-space: nowrap; }
+.pa-root .usertable td:first-child { min-width: 96px; }
+.pa-root .userscroll { overflow-x: auto; }
