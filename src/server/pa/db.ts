@@ -15,7 +15,7 @@ import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import path from "node:path";
 import { PA_SCHEMA_STEPS } from "./schema";
-import { ACCOUNT_SCHEMA } from "./accountSchema";
+import { ACCOUNT_ADD_COLS, ACCOUNT_SCHEMA } from "./accountSchema";
 
 export interface Db {
   all<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T[]>;
@@ -84,6 +84,11 @@ function open(): DatabaseSync {
   }
 
   sqlite.exec(ACCOUNT_SCHEMA);
+  for (const { table, column, ddl } of ACCOUNT_ADD_COLS) {
+    const cols = sqlite.prepare(`pragma table_info(${table})`).all() as { name: string }[];
+    if (!cols.some((c) => c.name === column)) sqlite.exec(`alter table ${table} add column ${ddl}`);
+  }
+  sqlite.exec("create unique index if not exists app_invites_token_idx on app_invites (token_hash) where token_hash is not null");
   sqlite.exec("CREATE TEMP VIEW IF NOT EXISTS profiles AS SELECT id, email, name, role FROM main.users");
   return sqlite;
 }

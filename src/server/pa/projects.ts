@@ -100,15 +100,15 @@ export async function claimPendingInvites(user: User): Promise<number> {
     }
     // 預約給這個信箱的 owner 換成他的帳號
     await t.run(
-      `update pa_parts p set sourcer_owner = ?, updated_at = ?
-         from pa_pending_owners o
-        where o.part_id = p.id and o.field = 'sourcer_owner' and lower(o.email) = lower(?) and coalesce(p.sourcer_owner, '') = ''`,
+      `update pa_parts set sourcer_owner = ?, updated_at = ?
+        where coalesce(sourcer_owner, '') = '' and id in (
+          select part_id from pa_pending_owners where field = 'sourcer_owner' and lower(email) = lower(?))`,
       [user.id, ts, user.email]
     );
     await t.run(
-      `update pa_parts p set rd_owner = ?, updated_at = ?
-         from pa_pending_owners o
-        where o.part_id = p.id and o.field = 'rd_owner' and lower(o.email) = lower(?) and coalesce(p.rd_owner, '') = ''`,
+      `update pa_parts set rd_owner = ?, updated_at = ?
+        where coalesce(rd_owner, '') = '' and id in (
+          select part_id from pa_pending_owners where field = 'rd_owner' and lower(email) = lower(?))`,
       [user.id, ts, user.email]
     );
     await t.run("delete from pa_pending_owners where lower(email) = lower(?)", [user.email]);

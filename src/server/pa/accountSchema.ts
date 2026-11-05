@@ -49,3 +49,10 @@ create table if not exists auth_attempts (
 );
 create index if not exists auth_attempts_idx on auth_attempts (kind, key, at);
 `;
+
+/** 舊資料庫的 app_invites 少了邀請連結要用的欄位:啟動時補上(已存在就跳過)。 */
+export const ACCOUNT_ADD_COLS: { table: string; column: string; ddl: string }[] = [
+  { table: "app_invites", column: "token_hash", ddl: "token_hash text" },
+  { table: "app_invites", column: "invited_by", ddl: "invited_by text not null default ''" },
+  { table: "app_invites", column: "invited_by_name", ddl: "invited_by_name text not null default ''" },
+];
