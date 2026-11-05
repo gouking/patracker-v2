@@ -34,7 +34,11 @@
 5. 內網直連(不用 Cloudflare):新主機設固定 IP(路由器 DHCP 保留),防火牆開 3200(系統管理員):
    `netsh advfirewall firewall add rule name="PA Tracker" dir=in action=allow protocol=TCP localport=3200`
    只有內網連得到;http 下 cookie 不加 Secure。
-6. 備份:整個 `data/` 資料夾(patracker.db 與 -wal/-shm)。每日備份要自己加(舊版靠 Supabase 的 pg_dump 排程)。
+6. 每日備份:`scripts/backup-patracker.cmd` 是範本(路徑改成新主機的),再排程每天 03:00 跑:
+   `schtasks /create /tn patracker-backup /sc daily /st 03:00 /tr "<專案資料夾>\scripts\backup-patracker.cmd"`
+   備份放在專案旁邊的 `patracker-backups`(可用 `PA_BACKUP_DIR` 改,最好指到另一顆硬碟或 NAS),保留 30 份,
+   結果寫在 `backup.log`。手動跑:`npm run backup`。網站開著也能備份(用 VACUUM INTO,不是直接複製檔案)。
+   還原:停網站 → 移走 `data/patracker.db`、`-wal`、`-shm` → 把備份檔複製成 `data/patracker.db` → 啟動。
 
 ## 帳號
 - 自己的帳號系統(`users`/`sessions` 在 patracker.db),cookie 叫 `pa_session`,跟同主機的 Trackly 互不干擾。
