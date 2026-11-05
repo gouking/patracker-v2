@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import DisplaySettings from "./DisplaySettings";
 
 async function signOut() {
   await fetch("/api/auth/signout", { method: "POST" }).catch(() => {});
@@ -29,6 +30,7 @@ export default function PaTopBar({
         {crumb && <div className="crumb">/ {crumb}</div>}
         <div className="topbar-tail">
           {children}
+          <DisplaySettings />
           <div className="whoami">
             {me?.isAdmin && <span className="rolebadge">Admin</span>}
             {roles?.map((r) => (

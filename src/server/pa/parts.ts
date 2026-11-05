@@ -521,7 +521,7 @@ export interface HoldInput {
 /** 開始(或改)一筆卡關:原因自由填、卡關日期(預設今天)、負責人(專案成員,誰都可以)、備註。
  *  原因換了 → 舊的那筆以新卡關日期結案,新的開始;同一個原因 = 改細節。 */
 export async function setHold(a: Access, userId: string, partId: string, input: HoldInput): Promise<void> {
-  if (!canEditField("hold_reason", a.roles, a.isAdmin)) throw new HttpError(403, "只有 PM／RD 可以設定卡關");
+  if (!canEditField("hold_reason", a.roles, a.isAdmin)) throw new HttpError(403, "你在這個專案是唯讀，不能設定卡關");
   const part = await getPartIn(a, partId);
   const reason = String(input.reason ?? "").trim();
   if (!reason) throw new HttpError(400, "請填卡關原因");
@@ -550,7 +550,7 @@ export async function setHold(a: Access, userId: string, partId: string, input: 
 
 /** 解除卡關:填完成日期(預設今天),料回到原本的階段 */
 export async function resolveHold(a: Access, userId: string, partId: string, resolved?: string | null): Promise<void> {
-  if (!canEditField("hold_reason", a.roles, a.isAdmin)) throw new HttpError(403, "只有 PM／RD 可以解除卡關");
+  if (!canEditField("hold_reason", a.roles, a.isAdmin)) throw new HttpError(403, "你在這個專案是唯讀，不能解除卡關");
   const part = await getPartIn(a, partId);
   if (!part.hold_reason) throw new HttpError(400, "這顆料沒有在卡關");
   const day = resolved ? String(resolved) : todayIn(TIMEZONE);

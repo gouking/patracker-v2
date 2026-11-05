@@ -86,7 +86,7 @@ const COLS: Col[] = [
   // 流程圖最後一段:RD、QA 都 pass 之後 Sourcer 上傳 PLM 送簽 → Released 才算真的做完
   { w: 104, key: "plm_upload", label: "上傳 PLM 送簽", who: "Sourcer" },
   { w: 104, key: "plm_released", label: "PLM Released", who: "Sourcer" },
-  { w: 176, key: "hold_reason", label: "卡關原因", who: "PM/RD" },
+  { w: 176, key: "hold_reason", label: "卡關原因", who: "全部成員" },
   // BOM 欄位只能靠匯入改，平常不太看，放最後（預設都收起來，要看再從「欄位」勾出來）
   { w: 170, key: "lifecycle", label: "LIFECYCLE" },
   { w: 130, key: "fg_model", label: "成品機種" },

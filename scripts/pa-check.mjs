@@ -366,7 +366,9 @@ async function main() {
   await db.run("update pa_parts set pa_start = null where id = any(?::text[])", [blank.map((p) => p.id)]);
   const flow = blank[0].id;
   await rejects("卡關原因太長(400)", () => Parts.updatePartField(aPm, pm.id, flow, "hold_reason", "長".repeat(41)), 400);
-  await rejects("Sourcer 不能改卡關原因(403)", () => Parts.updatePartField(aSourcer, sourcer.id, flow, "hold_reason", "ISSUE"), 403);
+  await Parts.updatePartField(aSourcer, sourcer.id, flow, "hold_reason", "ISSUE");
+  ok("Sourcer 也可以標卡關(全部成員都能用)", (await Parts.partRow(aPm, flow)).ev.phase === "hold_issue");
+  await Parts.updatePartField(aSourcer, sourcer.id, flow, "hold_reason", "");
   await rejects("RD 不能填上傳 PLM(403)", () => Parts.updatePartField(aRd, rd.id, flow, "plm_upload", "2026-02-20"), 403);
   await Parts.updatePartField(aRd, rd.id, flow, "hold_reason", "ISSUE");
   ok("RD 可以標 ISSUE", (await Parts.partRow(aPm, flow)).ev.phase === "hold_issue");
@@ -380,7 +382,6 @@ async function main() {
     ok("自由填的原因 → 卡關(ISSUE 那一段)", r1.hold_reason === "廠商停產" && r1.ev.phase === "hold_issue", r1.ev.phase);
     ok("卡關日期、負責人、備註存起來", r1.hold_since === "2026-03-01" && r1.hold_owner === sourcer.id && r1.hold_note === "等替代料");
     await rejects("負責人要是專案成員(400)", () => Parts.setHold(aPm, pm.id, flow, { reason: "X", owner: randomUUID() }), 400);
-    await rejects("Sourcer 不能標卡關(403)", () => Parts.setHold(aSourcer, sourcer.id, flow, { reason: "X" }), 403);
     await rejects("完成日期不能早於卡關日期(400)", () => Parts.resolveHold(aPm, pm.id, flow, "2026-02-01"), 400);
     await Parts.setHold(aPm, pm.id, flow, { reason: "待RD圖面進版", since: "2026-03-10", owner: rd.id });
     const d1 = await Parts.partDetail(aPm, flow);
@@ -419,6 +420,9 @@ async function main() {
   ok("PM Head 不是成員也看得到專案", aHead.project.id === project.id && aHead.roles.length === 0 && !aHead.canManage);
   ok("PM Head 的專案清單含這個專案", (await P.listProjects(head)).some((x) => x.id === project.id));
   await rejects("PM Head 不能改欄位(403)", () => Parts.updatePartField(aHead, head.id, flow, "part_type", "標準件"), 403);
+  await rejects("沒有專案角色的人(PM Head／團隊主管)不能標卡關(403)", () => Parts.setHold(aHead, head.id, flow, { reason: "X" }), 403);
+  const aTeamHead = await P.access(project.id, { ...head, account_role: "team_head" });
+  ok("團隊主管看得到專案但沒有專案角色", aTeamHead.project.id === project.id && aTeamHead.roles.length === 0);
   await rejects("一般帳號不是成員 → 看不到(404)", () => P.access(project.id, { ...head, account_role: "user", canViewAll: false }), 404);
   ok("自己做的事不寄給自己", (await Notify.planNotices(project.id, real.id, evStart)).length === 0);
   ok("改發起日期不再通知", (await Parts.updatePartField(aPm, pm.id, flow, "pa_start", "2026-02-02")).length === 0);

@@ -185,7 +185,7 @@ export const FIELDS: FieldDef[] = [
   { key: "drawing_release", label: "圖面 Release", kind: "date", editors: ["rd", "sourcer"], headers: [["圖面release"], ["圖面", "release"]] },
   { key: "plm_upload", label: "上傳 PLM 送簽", kind: "date", editors: ["sourcer"], headers: [["上傳plm"], ["plm", "送簽"]] },
   { key: "plm_released", label: "PLM Released", kind: "date", editors: ["sourcer"], headers: [["plmreleased"], ["plm", "released"]] },
-  { key: "hold_reason", label: "卡關原因", kind: "hold", editors: ["pm", "rd"], headers: [["卡關原因"]] },
+  { key: "hold_reason", label: "卡關原因", kind: "hold", editors: ["pm", "sourcer", "rd", "qa"], headers: [["卡關原因"]] },
   // BOM PDF 帶進來的結構資訊，沒有人能手改，headers 留空所以 Excel 匯入不會對到
   { key: "bom_level", label: "BOM 階層", kind: "text", editors: [], headers: [] },
   { key: "parent_pn", label: "上一階料號", kind: "text", editors: [], headers: [] },

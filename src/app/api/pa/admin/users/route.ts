@@ -11,7 +11,7 @@ import type { User } from "@/server/pa/auth";
 
 export const dynamic = "force-dynamic";
 
-const ROLES = ["admin", "pm_head", "pm_leader", "pm", "user", "trial"] as const;
+const ROLES = ["admin", "team_head", "pm_head", "pm_leader", "pm", "user", "trial"] as const;
 
 function requireAdmin(u: User) {
   if (!u.isAdmin || u.viaToken) throw new HttpError(403, "只有系統管理員可以管理使用者");

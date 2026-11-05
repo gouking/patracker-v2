@@ -16,10 +16,10 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  /** 系統角色:admin / pm_head / pm_leader / pm / user / trial(users.role) */
+  /** 系統角色:admin / team_head / pm_head / pm_leader / pm / user / trial(users.role) */
   account_role: string;
   isAdmin: boolean;
-  /** 看得到所有專案(唯讀):系統管理員或 PM Head。能不能改仍看專案角色 */
+  /** 看得到所有專案(唯讀):系統管理員、團隊主管或 PM Head。能不能改仍看專案角色 */
   canViewAll?: boolean;
   /** 這次請求是用個人連線金鑰(tokens.ts)而不是網頁登入 */
   viaToken?: boolean;
@@ -38,7 +38,7 @@ const toUser = (r: ProfileRow): User => ({
   name: r.name?.trim() || r.email.split("@")[0],
   account_role: r.role,
   isAdmin: r.role === "admin",
-  canViewAll: r.role === "admin" || r.role === "pm_head",
+  canViewAll: r.role === "admin" || r.role === "pm_head" || r.role === "team_head",
 });
 
 export async function getUserById(id: string): Promise<User | null> {
