@@ -26,7 +26,7 @@
 
 ## 新主機安裝(一次性)
 1. 裝 Node 24(要有內建的 `node:sqlite`)。
-2. `git clone https://github.com/aleckuab/patracker-v2.git`,
+2. `git clone https://github.com/gouking/patracker-v2.git`,
    再把舊電腦的 `data/` 資料夾複製過去(資料庫不在 GitHub 上),`npm ci`,`npm run build`。
    之後改程式:push → 新主機 `git pull`、`npm ci`、`npm run build`、重啟。
 3. `.env.local` 照 `.env.example` 填:`SESSION_SECRET`(新產生一把隨機值)、`NEXT_PUBLIC_APP_URL`、`SMTP_*`。
