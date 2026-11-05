@@ -7,7 +7,7 @@ import {
   ESCALATE_AT,
   FIELDS,
   HOLD_REASONS,
-  HOLD_HINT,
+  holdHint,
   OWNER_ROLE,
   PART_TYPES,
   PHASES,
@@ -82,11 +82,11 @@ const COLS: Col[] = [
   { w: 96, key: "rd_issues", label: "RD 退件", who: "RD" },
   { w: 124, key: "supplier_update_rd", label: "供應商更新資料（RD）", who: "RD" },
   { w: 104, key: "rd_pass", label: "RD review pass", who: "RD" },
-  { w: 104, key: "drawing_release", label: "圖面 Release", who: "RD" },
+  { w: 104, key: "drawing_release", label: "圖面 Release", who: "RD、Sourcer" },
   // 流程圖最後一段:RD、QA 都 pass 之後 Sourcer 上傳 PLM 送簽 → Released 才算真的做完
   { w: 104, key: "plm_upload", label: "上傳 PLM 送簽", who: "Sourcer" },
   { w: 104, key: "plm_released", label: "PLM Released", who: "Sourcer" },
-  { w: 118, key: "hold_reason", label: "卡關原因", who: "PM/RD" },
+  { w: 176, key: "hold_reason", label: "卡關原因", who: "PM/RD" },
   // BOM 欄位只能靠匯入改，平常不太看，放最後（預設都收起來，要看再從「欄位」勾出來）
   { w: 170, key: "lifecycle", label: "LIFECYCLE" },
   { w: 130, key: "fg_model", label: "成品機種" },
@@ -122,6 +122,8 @@ export default function Tracker(props: {
   initialOverdue: boolean;
   /** 從專案列表的階段 Dashboard 點進來時帶的 ?phase= */
   initialPhase: PhaseKey | null;
+  /** 從階段 Dashboard「被 QA 退件 N 次」點進來時帶的 ?rej=N:只看 QA 退件剛好 N 次的料 */
+  initialRej: number | null;
 }) {
   const { projectId, roles, isAdmin, sla, me } = props;
   const [parts, setParts] = useState(props.initialParts);
@@ -137,6 +139,7 @@ export default function Tracker(props: {
   const [overdue, setOverdue] = useState(props.initialOverdue);
   const [stageFilter, setStageFilter] = useState<StageKey | "approved" | "missingType" | "escalated" | "supplier_update" | null>(null);
   const [phaseFilter, setPhaseFilter] = useState<PhaseKey | null>(props.initialPhase);
+  const [rejFilter, setRejFilter] = useState<number | null>(props.initialRej);
   const [showRemoved, setShowRemoved] = useState(false);
   const [hideAlts, setHideAlts] = useState(false);
   const [showExcluded, setShowExcluded] = useState(false);
@@ -214,7 +217,7 @@ export default function Tracker(props: {
       setShowExcluded(f.showExcluded);
       setShowRemoved(f.showRemoved);
     };
-    const fromLink = props.initialMine || props.initialOverdue || props.initialPhase;
+    const fromLink = props.initialMine || props.initialOverdue || props.initialPhase || props.initialRej;
     let alive = true;
     const local = fromLink ? null : localFilters(projectId);
     if (local) apply(local);
@@ -435,6 +438,7 @@ export default function Tracker(props: {
       if (stageFilter === "escalated" && !p.ev.escalated.length) return false;
       if (stageFilter === "supplier_update" && p.ev.supplier_update.light !== "red") return false;
       if (phaseFilter && p.ev.phase !== phaseFilter) return false;
+      if (rejFilter && p.issues.filter((i) => i.dept === "QA").length !== rejFilter) return false;
       if (stageFilter && STAGE_KEYS.has(stageFilter) && p.ev[stageFilter as StageKey].light !== "red") return false;
       return true;
     });
@@ -460,14 +464,14 @@ export default function Tracker(props: {
       });
     }
     return out;
-  }, [live, deferredQ, model, lifecycle, ptype, mine, overdue, owned, ownerFilter, ownerKeys, me, nameOf, stageFilter, phaseFilter, sort, roles, hideAlts]);
+  }, [live, deferredQ, model, lifecycle, ptype, mine, overdue, owned, ownerFilter, ownerKeys, me, nameOf, stageFilter, phaseFilter, rejFilter, sort, roles, hideAlts]);
 
   const bulkDateFields = useMemo(
     () => FIELDS.filter((f) => f.kind === "date" && canEditField(f.key, roles, isAdmin)),
     [roles, isAdmin]
   );
   const canBulkType = canEditField("part_type", roles, isAdmin);
-  const canSelect = props.canManage || canBulkType || bulkDateFields.length > 0;
+  const canSelect = props.canManage || canBulkType || bulkDateFields.length > 0 || isAdmin || roles.length > 0;
 
   const cols = useMemo(() => COLS.filter((c) => !hidden.has(String(c.key))), [hidden]);
   const widthOf = useCallback((c: Col) => colW.get(String(c.key)) ?? c.w, [colW]);
@@ -554,7 +558,7 @@ export default function Tracker(props: {
     </button>
   );
 
-  const filtersOn = q || ownerFilter || model || lifecycle || ptype || mine || overdue || stageFilter || phaseFilter || hideAlts;
+  const filtersOn = q || ownerFilter || model || lifecycle || ptype || mine || overdue || stageFilter || phaseFilter || rejFilter || hideAlts;
   const open = openId ? parts.find((p) => p.id === openId) ?? null : null;
 
   return (
@@ -598,6 +602,11 @@ export default function Tracker(props: {
             </option>
           ))}
         </select>
+        {rejFilter && (
+          <button className="btn btn-sm btn-toggle on" onClick={() => setRejFilter(null)} title="點一下取消">
+            QA 退件 {rejFilter} 次 ✕
+          </button>
+        )}
         <select value={ownerFilter} onChange={(e) => setOwnerFilter(e.target.value)} aria-label="負責人">
           <option value="">全部負責人</option>
           {ownerOptions.map((o) => (
@@ -688,7 +697,7 @@ export default function Tracker(props: {
           <button
             className="btn btn-sm btn-ghost"
             onClick={() => {
-              setQ(""); setOwnerFilter(""); setModel(""); setLifecycle(""); setPtype(""); setMine(false); setOverdue(false); setStageFilter(null); setPhaseFilter(null); setHideAlts(false);
+              setQ(""); setOwnerFilter(""); setModel(""); setLifecycle(""); setPtype(""); setMine(false); setOverdue(false); setStageFilter(null); setPhaseFilter(null); setRejFilter(null); setHideAlts(false);
             }}
           >
             清除篩選
@@ -744,7 +753,7 @@ export default function Tracker(props: {
             </span>
           )}
 
-          {props.canManage && (
+          {canSelect && (
             <span className="bulkgroup">
               <button className="btn btn-sm" onClick={() => setExcluded(true)} title="母階組件之類不用做 PA 的料號">
                 排除，不做 PA 追蹤
@@ -863,6 +872,7 @@ export default function Tracker(props: {
           isAdmin={isAdmin}
           sla={sla}
           me={me}
+          members={props.members}
           canManage={props.canManage}
           onClose={() => setOpenId(null)}
           onChanged={applyDetail}
@@ -979,6 +989,8 @@ const Row = memo(function Row({
           const back = [lastIss?.resubmitted ?? null, sup].filter((x): x is string => Boolean(x)).sort().pop() ?? null;
           const took = back && lastIss ? daysBetween(lastIss.date, back) : null;
           const slow = took !== null && took > sla.supplier_update;
+          const rejN = p.issues.filter((i) => i.dept === dept).length;
+          const rejTag = rejN > 0 ? <span className="sub">・被退 {rejN} 次</span> : null;
           return (
             <td key={c.key} className={su.light === "red" ? "red" : !su.dept && slow ? "yellow" : ""} title={su.from ? `${su.dept} 退件日 ${su.from}，SLA ${sla.supplier_update} 天` : undefined}>
               <div className="v link" onClick={() => onOpen(p.id)} title="點開填供應商更新日期">
@@ -986,13 +998,14 @@ const Row = memo(function Row({
                   <span title={lastIss ? `${dept} 退件 ${lastIss.date} → 供應商 ${back} 更新，用了 ${took} 天（SLA ${sla.supplier_update} 天）` : `供應商 ${back} 更新資料`}>
                     {shortDate(back)}
                     {slow && <span className="sub">超 {took! - sla.supplier_update} 天</span>}
+                    {rejTag}
                   </span>
                 ) : !su.dept ? (
                   <span className="hint">—</span>
                 ) : su.light === "red" ? (
-                  <span><b>逾期 {su.overBy} 天</b></span>
+                  <span><b>逾期 {su.overBy} 天</b>{rejTag}</span>
                 ) : (
-                  <span className="hint">等供應商・剩 {su.dueIn} 天</span>
+                  <span><span className="hint">剩 {su.dueIn} 天</span>{rejTag}</span>
                 )}
               </div>
             </td>
@@ -1068,7 +1081,19 @@ const Row = memo(function Row({
           const pend = p.pending_owner?.[c.key as "sourcer_owner" | "rd_owner"];
           content = value ? nameOf(value) : pend ? <span title={`${pend.email}（已邀請，接受後自動成為 owner）`}>{pend.name}</span> : null;
         }
-        if (c.key === "hold_reason" && value) content = <span className="chip warn" title={HOLD_HINT[value as keyof typeof HOLD_HINT]}>{value}</span>;
+        if (c.key === "hold_reason" && value) {
+          // 原因 + 負責人・卡關日期・已卡幾天。細節與歷史在側欄
+          const since = p.hold_since;
+          const info = [p.hold_owner ? nameOf(p.hold_owner) : null, since ? `${shortDate(since)} 起` : null, since ? `${daysBetween(since, today)} 天` : null]
+            .filter(Boolean)
+            .join("・");
+          content = (
+            <>
+              <span className="chip warn" title={[holdHint(value), p.hold_note].filter(Boolean).join("\n")}>{value}</span>
+              {info && <span className="sub">{info}</span>}
+            </>
+          );
+        }
         if (slaStage && ev) {
           if (ev.light === "red") content = <span><b>逾期 {ev.overBy} 天</b></span>;
           else if (ev.light === "yellow") content = <><span className="mono">{shortDate(value)}</span><span className="sub">超 {ev.overBy} 天</span></>;
@@ -1087,10 +1112,10 @@ const Row = memo(function Row({
           <td key={c.key} className={cls.join(" ")} title={title}>
             <div
               className="v"
-              onClick={editable ? () => onEdit(p.id, key) : undefined}
-              onKeyDown={editable ? (e) => { if (e.key === "Enter") onEdit(p.id, key); } : undefined}
-              tabIndex={editable ? 0 : undefined}
-              role={editable ? "button" : undefined}
+              onClick={key === "hold_reason" ? () => onOpen(p.id) : editable ? () => onEdit(p.id, key) : undefined}
+              onKeyDown={key === "hold_reason" ? (e) => { if (e.key === "Enter") onOpen(p.id); } : editable ? (e) => { if (e.key === "Enter") onEdit(p.id, key); } : undefined}
+              tabIndex={editable || key === "hold_reason" ? 0 : undefined}
+              role={editable || key === "hold_reason" ? "button" : undefined}
             >
               {content ?? <span className="hint">{editable ? "＋" : ""}</span>}
             </div>

@@ -245,4 +245,35 @@ create table if not exists pa_supplier_chase_log (
 );
 alter table pa_supplier_chase_log enable row level security;
 
+-- PA Tracker:卡關原因加上「卡關日期、負責人、備註、完成日期」,並留下每一次卡關的歷史(2026-11-05)
+-- Supabase → SQL Editor 貼上 → Run;重複執行是安全的。(sql/add_pa_tracker.sql 也有同樣的內容)
+--
+-- 目前進行中的卡關還是放在 pa_parts(hold_reason 原本就在,階段與通知都靠它);
+-- 這次多三欄:卡關日期、負責人、備註。卡關結束(填了完成日期)時整筆搬進 pa_part_holds 當歷史,
+-- 料就回到日期推得出來的原本階段。
+
+alter table pa_parts add column if not exists hold_since text;
+alter table pa_parts add column if not exists hold_owner text not null default '';
+alter table pa_parts add column if not exists hold_note  text not null default '';
+
+create table if not exists pa_part_holds (
+  id          text primary key,
+  part_id     text not null references pa_parts(id) on delete cascade,
+  reason      text not null,
+  started     text not null,
+  owner       text not null default '',
+  note        text not null default '',
+  resolved    text not null,
+  resolved_by text not null default '',
+  created_at  text not null
+);
+create index if not exists idx_pa_part_holds_part on pa_part_holds(part_id, resolved);
+alter table pa_part_holds enable row level security;
+
+-- 舊資料:已經在卡關的料,卡關日期用修改紀錄裡設定卡關原因的那天(找不到就用建立日)
+update pa_parts as p set hold_since = coalesce(
+  (select substr(max(h.at), 1, 10) from pa_part_history h where h.part_id = p.id and h.field = 'hold_reason' and coalesce(h.new_value, '') <> ''),
+  substr(p.created_at, 1, 10))
+ where coalesce(p.hold_reason, '') <> '' and p.hold_since is null;
+
 select 'PA Tracker tables ready' as status;

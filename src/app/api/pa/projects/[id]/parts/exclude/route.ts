@@ -5,7 +5,7 @@ import { todayIn } from "@/lib/pa";
 
 export const dynamic = "force-dynamic";
 
-/** body: { part_ids: string[], excluded: boolean } —— 批次排除／恢復追蹤（專案 PM 或 admin）。 */
+/** body: { part_ids: string[], excluded: boolean } —— 批次排除／恢復追蹤（專案成員都可以）。 */
 export const POST = handle(async (req, user, ctx: Ctx<{ id: string }>) => {
   const a = await access((await ctx.params).id, user);
   const b = await body(req);

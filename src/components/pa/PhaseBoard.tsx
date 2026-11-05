@@ -9,9 +9,11 @@ import { Fragment } from "react";
 import { PHASES, type PhaseKey } from "@/lib/pa";
 
 export default function PhaseBoard({
-  projectId, counts, total,
+  projectId, counts, total, reworkQa,
 }: {
   projectId: string;
+  /** 「廠商資料更新」各被 QA 退件幾次的料數,顯示在那一列正下面 */
+  reworkQa?: Record<number, number>;
   counts: Partial<Record<PhaseKey, number>>;
   /** 含不追蹤(不需PA)、不含已不在 BOM —— 跟原本那張表一樣 */
   total: number;
@@ -79,6 +81,25 @@ export default function PhaseBoard({
                 <td>{ph.owner}</td>
                 <td className="desc" title={ph.desc}>{ph.desc}</td>
               </tr>
+              {ph.key === "rework_qa" && n > 0 && reworkQa && Object.keys(reworkQa).length > 0 && (
+                <tr className="pb-sub">
+                  <td colSpan={5}>
+                    被 QA 退件：
+                    {Object.entries(reworkQa)
+                      .sort((a, b) => Number(a[0]) - Number(b[0]))
+                      .map(([times, cnt]) => (
+                        <Link
+                          key={times}
+                          href={`${href("rework_qa")}&rej=${times}`}
+                          className="pb-sub-item"
+                          title={`看被 QA 退件 ${times} 次的 ${cnt} 顆`}
+                        >
+                          {times} 次 <b className="mono">{cnt}</b> 顆
+                        </Link>
+                      ))}
+                  </td>
+                </tr>
+              )}
               </Fragment>
             );
           })}

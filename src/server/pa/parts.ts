@@ -9,7 +9,6 @@ import { fieldEvents, issueEvent, type PaEvent } from "./notify";
 import {
   DEFAULT_SLA,
   FIELD_BY_KEY,
-  HOLD_REASONS,
   ISSUE_EDITOR,
   OWNER_ROLE,
   ROLE_LABEL,
@@ -107,6 +106,8 @@ export interface ProjectStat {
   /** 階段統計(專案列表的 Dashboard):含不追蹤(不需PA)、不含已不在 BOM */
   phases: Partial<Record<PhaseKey, number>>;
   phaseTotal: number;
+  /** 「廠商資料更新」(QA 退件)那些料,各被 QA 退件幾次:{ 退件次數: 料數 } */
+  reworkQa: Record<number, number>;
 }
 
 /** 專案卡片與首頁摘要要的數字。
@@ -127,18 +128,18 @@ export async function projectStats(
   type Row = Pick<
     Part,
     | "project_id" | "part_type" | "pa_start" | "supplier_notified" | "docs_received" | "rd_review_start" | "qa_review_start" | "rd_pass" | "qa_pass"
-    | "plm_upload" | "plm_released" | "hold_reason" | "excluded" | "supplier_updated" | "supplier_updated_at" | "rd_owner" | "rd_owner_pending"
+    | "plm_upload" | "plm_released" | "hold_reason" | "excluded" | "supplier_updated" | "supplier_updated_at" | "rd_owner" | "rd_owner_pending" | "drawing_release"
   > & {
     last_rd_issue: string | null; last_qa_issue: string | null; last_rd_resub: string | null; last_qa_resub: string | null;
-    last_rd_created: string | null; last_qa_created: string | null;
+    last_rd_created: string | null; last_qa_created: string | null; qa_issue_n: string | number | null;
   } &
     Partial<Sla>;
   const rows = await db.all<Row>(
     `select p.project_id, p.part_type, p.pa_start, p.supplier_notified, p.docs_received,
             p.rd_review_start, p.qa_review_start, p.rd_pass, p.qa_pass, p.plm_upload, p.plm_released, p.hold_reason, p.excluded,
-            p.supplier_updated, p.supplier_updated_at, p.rd_owner,
+            p.supplier_updated, p.supplier_updated_at, p.rd_owner, p.drawing_release,
             exists (select 1 from pa_pending_owners o where o.part_id = p.id and o.field = 'rd_owner') as rd_owner_pending,
-            i.last_rd_issue, i.last_qa_issue, i.last_rd_resub, i.last_qa_resub, i.last_rd_created, i.last_qa_created,
+            i.last_rd_issue, i.last_qa_issue, i.last_rd_resub, i.last_qa_resub, i.last_rd_created, i.last_qa_created, i.qa_issue_n,
             g.supplier_notified as sla_supplier_notified, g.docs_std, g.docs_custom, g.rd_pass as sla_rd_pass, g.qa_pass as sla_qa_pass,
             g.supplier_update as sla_supplier_update, g.rereview as sla_rereview
        from pa_parts p
@@ -152,13 +153,14 @@ export async function projectStats(
                 (json_group_array(date order by date desc, created_at desc) filter (where dept = 'QA')) ->> 0 as last_qa_issue,
                 (json_group_array(resubmitted order by date desc, created_at desc) filter (where dept = 'QA')) ->> 0 as last_qa_resub,
                 (json_group_array(created_at order by date desc, created_at desc) filter (where dept = 'RD')) ->> 0 as last_rd_created,
-                (json_group_array(created_at order by date desc, created_at desc) filter (where dept = 'QA')) ->> 0 as last_qa_created
+                (json_group_array(created_at order by date desc, created_at desc) filter (where dept = 'QA')) ->> 0 as last_qa_created,
+                count(*) filter (where dept = 'QA') as qa_issue_n
            from pa_review_issues group by part_id
        ) i on i.part_id = p.id
       where p.project_id = any(?::text[]) and p.removed_from_bom = 0`,
     [ids]
   );
-  for (const id of ids) out.set(id, { total: 0, approved: 0, started: 0, red: 0, mine: 0, phases: {}, phaseTotal: 0 });
+  for (const id of ids) out.set(id, { total: 0, approved: 0, started: 0, red: 0, mine: 0, phases: {}, phaseTotal: 0, reworkQa: {} });
   for (const r of rows) {
     const stat = out.get(r.project_id);
     if (!stat) continue;
@@ -179,6 +181,10 @@ export async function projectStats(
     const ev = evalPart(r as unknown as Part, iss, sla, today);
     stat.phases[ev.phase] = (stat.phases[ev.phase] ?? 0) + 1;
     stat.phaseTotal++;
+    if (ev.phase === "rework_qa") {
+      const n = Number(r.qa_issue_n ?? 0);
+      if (n > 0) stat.reworkQa[n] = (stat.reworkQa[n] ?? 0) + 1;
+    }
     if (r.excluded) continue;
     stat.total++;
     if (ev.approved) stat.approved++;
@@ -237,7 +243,7 @@ export function normalizeValue(key: string, raw: unknown): string | null {
     return s;
   }
   if (f.kind === "hold") {
-    if (s && !HOLD_REASONS.includes(s as never)) throw new HttpError(400, `卡關原因只能是 ${HOLD_REASONS.join("／")}`);
+    if (s.length > 40) throw new HttpError(400, "卡關原因太長（最多 40 字）");
     return s;
   }
   if (f.kind === "user") {
@@ -280,6 +286,12 @@ export async function updatePartField(a: Access, userId: string, partId: string,
   });
   if (key === "supplier_updated") {
     await db.run("update pa_parts set supplier_updated_at = ? where id = ?", [value ? ts : null, partId]);
+  }
+  // 表格上直接改「卡關原因」:卡關日期 = 今天,舊的那筆結案
+  if (key === "hold_reason") await syncHold(db, part, value ?? "", userId, todayIn(TIMEZONE));
+  // 上傳 PLM 送簽了,卡關原因自動清掉(完成日期 = 上傳日)
+  if (clearsHold(key, value, part.hold_reason)) {
+    await endHold(db, part, userId, value!, ts);
   }
   // Sourcer 回填「供應商更新資料日期」= 供應商把資料送來了:已通知供應商、還沒填「收齊資料」的料,
   // 一併把收齊資料填成同一天 —— 階段才會進到「待QA審核」、QA 才會收到通知、QA 期限從這天算
@@ -467,6 +479,95 @@ export async function deleteIssue(a: Access, userId: string, issueId: string): P
 
 /** 批次填同一個欄位(屬性、日期…)。權限跟單筆一樣逐欄檢查,每一筆都留修改紀錄。
  *  值跟原本一樣的那幾筆會跳過,不會灌一堆沒意義的紀錄。該寄的即時通知放進 events。 */
+// ---------- 卡關(原因、日期、負責人、完成日期) ----------
+
+type Runner = Pick<Db, "run">;
+
+/** 把目前進行中的卡關存進歷史(pa_part_holds):原因、起始日、負責人、備註、完成日期 */
+async function archiveHold(t: Runner, part: Part, userId: string, resolved: string, ts: string) {
+  if (!part.hold_reason) return;
+  await t.run(
+    `insert into pa_part_holds (id, part_id, reason, started, owner, note, resolved, resolved_by, created_at)
+     values (?,?,?,?,?,?,?,?,?)`,
+    [newId(), part.id, part.hold_reason, part.hold_since ?? resolved, part.hold_owner ?? "", part.hold_note ?? "", resolved, userId, ts]
+  );
+}
+
+/** 結束進行中的卡關:歷史留一筆、料上的卡關欄位清空,階段就回到日期推得出來的樣子 */
+async function endHold(t: Runner, part: Part, userId: string, resolved: string, ts: string) {
+  if (!part.hold_reason) return;
+  await archiveHold(t, part, userId, resolved, ts);
+  await t.run("update pa_parts set hold_reason = '', hold_since = null, hold_owner = '', hold_note = '', updated_at = ? where id = ?", [ts, part.id]);
+  await t.run("insert into pa_part_history (part_id, user_id, field, old_value, new_value, at) values (?,?,?,?,?,?)", [
+    part.id, userId, "hold_reason", part.hold_reason, "", ts,
+  ]);
+}
+
+/** 卡關原因被改了(表格直接改、批次改):舊的那筆結案,新的原因從 today 起算。
+ *  這時 pa_parts.hold_reason 已經是新值,part 是改之前的樣子。 */
+async function syncHold(t: Runner, part: Part, next: string, userId: string, today: string) {
+  if ((part.hold_reason ?? "") === next) return;
+  await archiveHold(t, part, userId, today, now());
+  await t.run("update pa_parts set hold_since = ?, hold_owner = '', hold_note = '' where id = ?", [next ? today : null, part.id]);
+}
+
+export interface HoldInput {
+  reason: string;
+  since?: string | null;
+  owner?: string | null;
+  note?: string | null;
+}
+
+/** 開始(或改)一筆卡關:原因自由填、卡關日期(預設今天)、負責人(專案成員,誰都可以)、備註。
+ *  原因換了 → 舊的那筆以新卡關日期結案,新的開始;同一個原因 = 改細節。 */
+export async function setHold(a: Access, userId: string, partId: string, input: HoldInput): Promise<void> {
+  if (!canEditField("hold_reason", a.roles, a.isAdmin)) throw new HttpError(403, "只有 PM／RD 可以設定卡關");
+  const part = await getPartIn(a, partId);
+  const reason = String(input.reason ?? "").trim();
+  if (!reason) throw new HttpError(400, "請填卡關原因");
+  if (reason.length > 40) throw new HttpError(400, "卡關原因太長（最多 40 字）");
+  const since = input.since ? String(input.since) : todayIn(TIMEZONE);
+  if (!isDate(since)) throw new HttpError(400, "卡關日期格式要是 YYYY-MM-DD");
+  const owner = String(input.owner ?? "").trim();
+  if (owner && !(await rolesOf(a.project.id, owner)).length) throw new HttpError(400, "負責人要是這個專案的成員");
+  const note = String(input.note ?? "").trim().slice(0, 300);
+  const ts = now();
+  await db.tx(async (t) => {
+    const changed = (part.hold_reason ?? "") !== reason;
+    if (changed) await archiveHold(t, part, userId, since, ts);
+    await t.run(
+      "update pa_parts set hold_reason = ?, hold_since = ?, hold_owner = ?, hold_note = ?, updated_at = ? where id = ?",
+      [reason, since, owner, note, ts, partId]
+    );
+    if (changed) {
+      await t.run("insert into pa_part_history (part_id, user_id, field, old_value, new_value, at) values (?,?,?,?,?,?)", [
+        partId, userId, "hold_reason", part.hold_reason ?? "", reason, ts,
+      ]);
+    }
+    await touch(t, a.project.id);
+  });
+}
+
+/** 解除卡關:填完成日期(預設今天),料回到原本的階段 */
+export async function resolveHold(a: Access, userId: string, partId: string, resolved?: string | null): Promise<void> {
+  if (!canEditField("hold_reason", a.roles, a.isAdmin)) throw new HttpError(403, "只有 PM／RD 可以解除卡關");
+  const part = await getPartIn(a, partId);
+  if (!part.hold_reason) throw new HttpError(400, "這顆料沒有在卡關");
+  const day = resolved ? String(resolved) : todayIn(TIMEZONE);
+  if (!isDate(day)) throw new HttpError(400, "完成日期格式要是 YYYY-MM-DD");
+  if (part.hold_since && day < part.hold_since) throw new HttpError(400, "完成日期不能早於卡關日期");
+  await db.tx(async (t) => {
+    await endHold(t, part, userId, day, now());
+    await touch(t, a.project.id);
+  });
+}
+
+/** 填了「上傳 PLM 送簽」,卡關就算解掉了。圖面 Release 不清:「待RD圖面進版」要留著,階段才會是待上傳 PLM、SLA 才會略過這顆 */
+function clearsHold(key: string, value: string | null, hold: string | null | undefined): boolean {
+  if (!value || !hold) return false;
+  return key === "plm_upload";
+}
+
 export async function updatePartsField(
   a: Access, userId: string, partIds: string[], key: string, raw: unknown, events: PaEvent[] = []
 ): Promise<number> {
@@ -502,6 +603,8 @@ export async function updatePartsField(
       await t.run("insert into pa_part_history (part_id, user_id, field, old_value, new_value, at) values (?,?,?,?,?,?)", [
         id, userId, key, old, value, ts,
       ]);
+      if (key === "hold_reason") await syncHold(t, p, value ?? "", userId, todayIn(TIMEZONE));
+      if (clearsHold(key, value, p.hold_reason)) await endHold(t, p, userId, value!, ts);
       events.push(...fieldEvents(p, key, value));
       changed++;
     }
@@ -513,7 +616,8 @@ export async function updatePartsField(
 /** 把料號排除在 PA 追蹤之外(或恢復)。母階組件、樣品件之類本來就不用做 PA。
  *  只是標記:修改紀錄、退件紀錄都留著,重新匯入 BOM 也不會把它們倒回追蹤清單。 */
 export async function setExcluded(a: Access, userId: string, partIds: string[], excluded: boolean, note = "手動排除"): Promise<number> {
-  requireManage(a);
+  // 專案成員都能排除／恢復追蹤(PM Head 這種沒有專案角色的唯讀帳號不行)
+  if (!a.isAdmin && a.roles.length === 0) throw new HttpError(403, "你在這個專案是唯讀，不能改");
   const ids = [...new Set(partIds)].filter(Boolean);
   if (!ids.length) throw new HttpError(400, "沒有選到料號");
   if (ids.length > 5000) throw new HttpError(400, "一次最多 5000 筆");
@@ -536,21 +640,41 @@ export async function setExcluded(a: Access, userId: string, partIds: string[], 
   return changed;
 }
 
+export interface HoldRecord {
+  id: string;
+  reason: string;
+  started: string;
+  owner: string;
+  owner_name: string;
+  note: string;
+  resolved: string;
+  resolved_by_name: string;
+}
+
 export interface PartDetail {
   part: PartRow;
+  /** 這顆料以前卡關過的歷史(新的在前);進行中的那筆在 part.hold_* */
+  holds: HoldRecord[];
   notes: (Note & { created_by_name: string })[];
   issues: (Issue & { created_by_name: string })[];
 }
 
 export async function partDetail(a: Access, partId: string): Promise<PartDetail> {
   // 修改紀錄照樣寫(誰在何時改了什麼是要留的),只是側欄不再顯示,所以這裡不查、也不回傳
-  const [p, notes, issues, sla] = await Promise.all([
+  const [p, notes, issues, sla, holdRows] = await Promise.all([
     getPartIn(a, partId),
     db.all<Note>("select * from pa_part_notes where part_id = ? order by date desc, created_at desc", [partId]),
     db.all<Issue>("select * from pa_review_issues where part_id = ? order by date, created_at", [partId]),
     getSla(a.project.id),
+    db.all<Omit<HoldRecord, "owner_name" | "resolved_by_name"> & { resolved_by: string }>(
+      "select id, reason, started, owner, note, resolved, resolved_by from pa_part_holds where part_id = ? order by resolved desc, started desc",
+      [partId]
+    ),
   ]);
-  const users = await getUsersByIds([...notes.map((n) => n.created_by), ...issues.map((i) => i.created_by)]);
+  const users = await getUsersByIds([
+    ...notes.map((n) => n.created_by), ...issues.map((i) => i.created_by),
+    ...holdRows.flatMap((h) => [h.owner, h.resolved_by]).filter(Boolean),
+  ]);
   const name = (id: string) => (id === "import" ? "BOM 匯入" : users.get(id)?.name ?? "(已刪除的帳號)");
   const iss = issues.map(lite);
   const recent = notes.map((n) => ({ date: n.date, text: n.text }));
@@ -558,5 +682,10 @@ export async function partDetail(a: Access, partId: string): Promise<PartDetail>
     part: { ...p, issues: iss, recent_notes: recent, ev: evalPart(p, iss, sla, todayIn(TIMEZONE)) },
     notes: notes.map((n) => ({ ...n, created_by_name: name(n.created_by) })),
     issues: issues.map((i) => ({ ...i, created_by_name: name(i.created_by) })),
+    holds: holdRows.map(({ resolved_by, ...h }) => ({
+      ...h,
+      owner_name: h.owner ? users.get(h.owner)?.name ?? "(已不是成員)" : "",
+      resolved_by_name: name(resolved_by),
+    })),
   };
 }

@@ -21,6 +21,7 @@ interface ProjectCard {
   red: number;
   phases: Partial<Record<PhaseKey, number>>;
   phaseTotal: number;
+  reworkQa?: Record<number, number>;
 }
 
 interface Payload {
@@ -143,7 +144,7 @@ function Projects() {
                         打開追蹤表 →
                       </Link>
                     </div>
-                    <PhaseBoard projectId={p.id} counts={p.phases} total={p.phaseTotal} />
+                    <PhaseBoard projectId={p.id} counts={p.phases} total={p.phaseTotal} reworkQa={p.reworkQa} />
                   </section>
                 );
               return (

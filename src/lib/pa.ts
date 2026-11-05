@@ -24,6 +24,8 @@ export const PART_TYPES: PartType[] = ["標準件", "訂製件"];
 /** 卡關原因:日期推不出來、要人判斷的兩種。存的就是這兩個字串。 */
 export type HoldReason = "待RD圖面進版" | "ISSUE";
 export const HOLD_REASONS: HoldReason[] = ["待RD圖面進版", "ISSUE"];
+/** 卡關原因的說明:兩個預設有固定說法,自己填的就是「卡關中」 */
+export const holdHint = (reason: string): string => (HOLD_HINT as Record<string, string>)[reason] ?? "卡關中（自訂原因）";
 export const HOLD_HINT: Record<HoldReason, string> = {
   待RD圖面進版: "包材圖面待進版（EC）後上 PLM",
   ISSUE: "尚未提交初版文件，需 PM/RD 決議",
@@ -80,6 +82,10 @@ export interface Part {
   plm_released: string | null;
   /** 卡關原因(手選):"" | HoldReason。日期推不出來的兩種狀況靠它 */
   hold_reason: string;
+  /** 這次卡關從哪天開始、誰負責、備註(沒在卡關時為空)。卡關結束後搬進 pa_part_holds 當歷史 */
+  hold_since?: string | null;
+  hold_owner?: string;
+  hold_note?: string;
   /** PLM 開 PA 日:跟收到首件日一樣,使用者說用不到,已從 FIELDS 拿掉;資料庫欄位還在 */
   plm_pa_start: string | null; // P
   /** 收到首件日:使用者說用不到,已從 FIELDS 拿掉(不顯示、不匯入、不匯出);
@@ -176,7 +182,7 @@ export const FIELDS: FieldDef[] = [
   { key: "qa_pass", label: "QA review pass", kind: "date", editors: ["qa"], headers: [["qareview", "pass"]] },
   { key: "sample_received", label: "承認樣品", kind: "date", editors: ["sourcer"], headers: [["承認樣品"]] },
   { key: "supplier_updated", label: "供應商更新資料日期", kind: "date", editors: ["sourcer"], headers: [["供應商更新"], ["廠商更新"]] },
-  { key: "drawing_release", label: "圖面 Release", kind: "date", editors: ["rd"], headers: [["圖面release"], ["圖面", "release"]] },
+  { key: "drawing_release", label: "圖面 Release", kind: "date", editors: ["rd", "sourcer"], headers: [["圖面release"], ["圖面", "release"]] },
   { key: "plm_upload", label: "上傳 PLM 送簽", kind: "date", editors: ["sourcer"], headers: [["上傳plm"], ["plm", "送簽"]] },
   { key: "plm_released", label: "PLM Released", kind: "date", editors: ["sourcer"], headers: [["plmreleased"], ["plm", "released"]] },
   { key: "hold_reason", label: "卡關原因", kind: "hold", editors: ["pm", "rd"], headers: [["卡關原因"]] },
@@ -544,9 +550,12 @@ function inRework(part: Part, issues: IssueLite[], dept: Issue["dept"]): boolean
 export function derivePhase(part: Part, issues: IssueLite[]): PhaseKey {
   if (part.excluded) return "na";
   if (isDate(part.plm_released)) return "done";
-  if (part.hold_reason === "ISSUE") return "hold_issue";
-  if (part.hold_reason === "待RD圖面進版") return "hold_ec";
+  // 已經上傳 PLM 送簽就是 PLM 簽核,不管卡關原因還留著什麼
   if (isDate(part.plm_upload)) return "plm_signing";
+  // 卡關原因可以自由填:除了「待RD圖面進版」(包材圖面,有自己的階段),其他都算 ISSUE 那一段
+  if (part.hold_reason && part.hold_reason !== "待RD圖面進版") return "hold_issue";
+  // 圖面 Release 了,「待RD圖面進版」就解掉了 → 待上傳 PLM
+  if (part.hold_reason === "待RD圖面進版") return isDate(part.drawing_release) ? "plm_ready" : "hold_ec";
   const rdOk = isDate(part.rd_pass);
   const qaOk = isDate(part.qa_pass);
   // QA pass 了,而且 RD 也 pass 了、或這顆料不用 RD 審(沒有 RD owner)→ 可上 PLM
@@ -627,7 +636,7 @@ export function evalPart(part: Part, issues: IssueLite[], sla: Sla, today: strin
   const approved = isDate(part.qa_pass) && (isDate(part.rd_pass) || !rdNeeded(part, issues));
   // PLM 那一段沒有 SLA,但一樣算「輪到 Sourcer」
   if (approved && !isDate(part.plm_released)) waitingOn.add("sourcer");
-  if (part.hold_reason === "ISSUE") { waitingOn.add("pm"); waitingOn.add("rd"); }
+  if (part.hold_reason && part.hold_reason !== "待RD圖面進版") { waitingOn.add("pm"); waitingOn.add("rd"); }
   if (part.hold_reason === "待RD圖面進版") waitingOn.add("rd");
   const escalated = escalatedDepts(part, issues);
   if (escalated.length) waitingOn.add("pm");

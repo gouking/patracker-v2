@@ -43,6 +43,7 @@ const TABLES = [
   "pa_part_notes",
   "pa_review_issues",
   "pa_part_history",
+  "pa_part_holds",
   "pa_digest_log",
   "pa_notify_log",
   "pa_api_tokens",
@@ -143,6 +144,8 @@ for (const [t, ...fields] of [
   ["pa_part_notes", "created_by"],
   ["pa_review_issues", "created_by"],
   ["pa_part_history", "user_id"],
+  ["pa_parts", "hold_owner"],
+  ["pa_part_holds", "owner", "resolved_by"],
   ["pa_api_tokens", "user_id"],
   ["pa_user_prefs", "user_id"],
 ]) {

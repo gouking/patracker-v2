@@ -160,6 +160,36 @@ export const PA_SCHEMA_STEPS: SchemaStep[] = [
     "sql": "create table if not exists pa_supplier_chase_log (\n  day          text not null,\n  supplier_key text not null,\n  to_email     text not null default '',\n  sent_at      text not null,\n  ok           integer not null,\n  primary key (day, supplier_key)\n)"
   },
   {
+    "addcol": {
+      "table": "pa_parts",
+      "column": "hold_since",
+      "ddl": "hold_since text"
+    }
+  },
+  {
+    "addcol": {
+      "table": "pa_parts",
+      "column": "hold_owner",
+      "ddl": "hold_owner text not null default ''"
+    }
+  },
+  {
+    "addcol": {
+      "table": "pa_parts",
+      "column": "hold_note",
+      "ddl": "hold_note text not null default ''"
+    }
+  },
+  {
+    "sql": "create table if not exists pa_part_holds (\n  id          text primary key,\n  part_id     text not null references pa_parts(id) on delete cascade,\n  reason      text not null,\n  started     text not null,\n  owner       text not null default '',\n  note        text not null default '',\n  resolved    text not null,\n  resolved_by text not null default '',\n  created_at  text not null\n)"
+  },
+  {
+    "sql": "create index if not exists idx_pa_part_holds_part on pa_part_holds(part_id, resolved)"
+  },
+  {
+    "sql": "update pa_parts as p set hold_since = coalesce(\n  (select substr(max(h.at), 1, 10) from pa_part_history h where h.part_id = p.id and h.field = 'hold_reason' and coalesce(h.new_value, '') <> ''),\n  substr(p.created_at, 1, 10))\n where coalesce(p.hold_reason, '') <> '' and p.hold_since is null"
+  },
+  {
     "sql": "create table if not exists app_invites (\n  id text primary key, email text not null, name text not null default '',\n  pa_project_id text, pa_roles text not null default '', used_at text,\n  expires_at text not null, created_at text not null\n)"
   }
 ];

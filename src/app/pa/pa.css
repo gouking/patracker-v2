@@ -345,6 +345,11 @@ body.pa-resizing { cursor: col-resize; user-select: none; }
 }
 /* 階段表:「不需PA」上面的「流程外」分隔列 */
 .pa-root .pb-table tbody tr.pb-sep td { padding: 10px 8px 2px; font-size: 11px; color: var(--ink-faint); border-bottom: 1px dashed var(--line-strong); background: none; }
+/* 階段表:「廠商資料更新」下面那條「被 QA 退件 1 次…」 */
+.pa-root .pb-table tbody tr.pb-sub td { text-align: left; vertical-align: middle; padding: 6px 8px 6px 24px; font-size: 12px; line-height: 1.4; color: var(--ink-soft); overflow: visible; white-space: normal; }
+.pa-root .pb-table .pb-sub-item { display: inline-block; vertical-align: middle; line-height: 1.4; margin: 0 8px 0 0; padding: 2px 10px; white-space: nowrap; position: relative; z-index: 1; color: var(--ink); text-decoration: none; border: 1px solid var(--line-strong); border-radius: 999px; background: var(--surface, transparent); }
+.pa-root .pb-table .pb-sub-item:hover { border-color: var(--ink-soft); background: var(--line); }
+.pa-root .pb-table .pb-sub-item b { color: var(--ink); }
 
 /* 供應商清單 */
 .pa-root .suptable td { vertical-align: top; }
@@ -401,3 +406,14 @@ body.pa-resizing { cursor: col-resize; user-select: none; }
 .pa-root .usertable .nopw { color: var(--hold); font-size: 12px; white-space: nowrap; }
 .pa-root .usertable td:first-child { min-width: 96px; }
 .pa-root .userscroll { overflow-x: auto; }
+
+/* 卡關面板(側欄):進行中的卡關、標記/編輯表單、歷史 */
+.pa-root .holdpanel .hold-open { display: flex; flex-direction: column; gap: 6px; }
+.pa-root .holdpanel .hold-meta { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13px; }
+.pa-root .holdpanel .hold-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 4px; }
+.pa-root .holdpanel .hold-form { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+.pa-root .holdpanel .hold-form label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--ink-soft); }
+.pa-root .holdpanel .hold-form label:first-child, .pa-root .holdpanel .hold-form label:last-of-type { grid-column: 1 / -1; }
+.pa-root .holdpanel .hold-form .hold-actions { grid-column: 1 / -1; }
+.pa-root .holdpanel .hold-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 13px; padding: 4px 0; border-top: 1px solid var(--line); }
+@media (max-width: 640px) { .pa-root .holdpanel .hold-form { grid-template-columns: 1fr; } }

@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/paClient";
-import { ESCALATE_AT, ISSUE_EDITOR, PHASE_BY_KEY, RESUBMIT_EDITORS, REVIEW_START, daysBetween, ROLE_LABEL, STAGES, evalPart, stageDays, stageStart, todayIn, type Role, type Sla } from "@/lib/pa";
-import type { PartDetail } from "@/server/pa/parts";
+import { ESCALATE_AT, ISSUE_EDITOR, HOLD_REASONS, canEditField, holdHint, PHASE_BY_KEY, RESUBMIT_EDITORS, REVIEW_START, daysBetween, ROLE_LABEL, STAGES, evalPart, stageDays, stageStart, todayIn, type Role, type Sla } from "@/lib/pa";
+import type { PartDetail, HoldRecord } from "@/server/pa/parts";
 
 export default function PartDrawer({
-  projectId, partId, roles, isAdmin, sla, me, canManage, onClose, onChanged,
+  projectId, partId, roles, isAdmin, sla, me, members, canManage, onClose, onChanged,
 }: {
   projectId: string;
   partId: string;
@@ -14,6 +14,7 @@ export default function PartDrawer({
   isAdmin: boolean;
   sla: Sla;
   me: string;
+  members: { user_id: string; name: string; pending?: boolean }[];
   canManage: boolean;
   onClose: () => void;
   onChanged: (d: PartDetail) => void;
@@ -149,14 +150,28 @@ export default function PartDrawer({
                       </span>
                     </div>
                   )}
-                  {p.hold_reason && (
-                    <div className="tl red">
-                      <span className="dot" />
-                      <span>卡關：{p.hold_reason}</span>
-                      <span style={{ fontSize: 12 }}>{PHASE_BY_KEY[p.hold_reason === "ISSUE" ? "hold_issue" : "hold_ec"].desc}</span>
-                    </div>
-                  )}
                 </div>
+              </section>
+
+              <section>
+                <h3>卡關</h3>
+                <HoldPanel
+                  part={p}
+                  holds={d!.holds ?? []}
+                  members={members}
+                  me={me}
+                  canEdit={canEditField("hold_reason", roles, isAdmin)}
+                  onSubmit={async (payload) => {
+                    setError(null);
+                    try {
+                      got(await api<PartDetail>(`${base}/hold`, { json: payload }));
+                      return true;
+                    } catch (e) {
+                      setError(e instanceof Error ? e.message : String(e));
+                      return false;
+                    }
+                  }}
+                />
               </section>
 
               <section>
@@ -294,6 +309,127 @@ export default function PartDrawer({
         </div>
       </aside>
     </>
+  );
+}
+
+/** 卡關:原因(自由填)、卡關日期、負責人(專案成員,誰都可以)、備註;結束時填完成日期,料回到原本的進度。
+ *  下面列出這顆料以前卡關過的歷史。 */
+function HoldPanel({
+  part, holds, members, me, canEdit, onSubmit,
+}: {
+  part: PartDetail["part"];
+  holds: HoldRecord[];
+  members: { user_id: string; name: string; pending?: boolean }[];
+  me: string;
+  canEdit: boolean;
+  onSubmit: (payload: Record<string, unknown>) => Promise<boolean>;
+}) {
+  const today = todayIn();
+  const [formOpen, setFormOpen] = useState(false);
+  const [reason, setReason] = useState("");
+  const [since, setSince] = useState(today);
+  const [owner, setOwner] = useState("");
+  const [note, setNote] = useState("");
+  const [resolved, setResolved] = useState(today);
+  const [busy, setBusy] = useState(false);
+  const people = members.filter((m) => !m.pending);
+  const nameOf = (id: string) => people.find((m) => m.user_id === id)?.name ?? "(已不是成員)";
+  const open = part.hold_reason;
+
+  const openForm = (edit: boolean) => {
+    setReason(edit ? part.hold_reason : "");
+    setSince(edit ? part.hold_since ?? today : today);
+    // 預設自己當負責人,但只限專案成員(管理員不一定是成員,選單也選不到自己)
+    setOwner(edit ? part.hold_owner || "" : people.some((m) => m.user_id === me) ? me : "");
+    setNote(edit ? part.hold_note ?? "" : "");
+    setFormOpen(true);
+  };
+  const run = async (payload: Record<string, unknown>) => {
+    setBusy(true);
+    const ok = await onSubmit(payload);
+    setBusy(false);
+    if (ok) setFormOpen(false);
+  };
+
+  return (
+    <div className="holdpanel">
+      {open && !formOpen && (
+        <div className="hold-open">
+          <div>
+            <span className="chip warn">{open}</span>
+            <span className="muted" style={{ fontSize: 12 }}>　{holdHint(open)}</span>
+          </div>
+          <div className="hold-meta">
+            <span>負責人：{part.hold_owner ? nameOf(part.hold_owner) : "（未指定）"}</span>
+            <span>卡關日期：<span className="mono">{part.hold_since ?? "—"}</span>{part.hold_since ? `（已 ${daysBetween(part.hold_since, today)} 天）` : ""}</span>
+            {part.hold_note && <span>備註：{part.hold_note}</span>}
+          </div>
+          {canEdit && (
+            <div className="hold-actions">
+              <input type="date" value={resolved} min={part.hold_since ?? undefined} onChange={(e) => setResolved(e.target.value)} aria-label="完成日期" />
+              <button className="btn btn-sm btn-accent" disabled={busy || !resolved || (!!part.hold_since && resolved < part.hold_since)} onClick={() => run({ action: "resolve", resolved })}>
+                解除卡關（回到原本進度）
+              </button>
+              <button className="btn btn-sm btn-ghost" onClick={() => openForm(true)}>編輯</button>
+            </div>
+          )}
+        </div>
+      )}
+      {!open && !formOpen && (
+        <div className="muted" style={{ fontSize: 13 }}>
+          目前沒有卡關
+          {canEdit && <button className="btn btn-sm" style={{ marginLeft: 8 }} onClick={() => openForm(false)}>＋ 標記卡關</button>}
+        </div>
+      )}
+      {formOpen && (
+        <form
+          className="hold-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void run({ action: "set", reason, since, owner, note });
+          }}
+        >
+          <label>
+            卡關原因（可自由填）
+            <input list="hold-reasons" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={40} required autoFocus placeholder="例如：待RD圖面進版、ISSUE、廠商停產" />
+            <datalist id="hold-reasons">{HOLD_REASONS.map((h) => <option key={h} value={h} />)}</datalist>
+          </label>
+          <label>
+            卡關日期
+            <input type="date" value={since} onChange={(e) => setSince(e.target.value)} required />
+          </label>
+          <label>
+            負責人
+            <select value={owner} onChange={(e) => setOwner(e.target.value)}>
+              <option value="">（未指定）</option>
+              {people.map((m) => <option key={m.user_id} value={m.user_id}>{m.name}</option>)}
+            </select>
+          </label>
+          <label>
+            備註（選填）
+            <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={300} />
+          </label>
+          <div className="hold-actions">
+            <button className="btn btn-sm btn-accent" disabled={busy || !reason.trim()}>{open ? "儲存" : "標記卡關"}</button>
+            <button type="button" className="btn btn-sm btn-ghost" onClick={() => setFormOpen(false)}>取消</button>
+          </div>
+        </form>
+      )}
+      {holds.length > 0 && (
+        <div className="hold-history">
+          <div className="muted" style={{ fontSize: 12, margin: "10px 0 4px" }}>卡關歷史</div>
+          {holds.map((h) => (
+            <div key={h.id} className="hold-row">
+              <span className="chip">{h.reason}</span>
+              <span className="mono">{h.started} → {h.resolved}</span>
+              <span className="muted">（{daysBetween(h.started, h.resolved)} 天）</span>
+              <span>{h.owner_name || "未指定負責人"}</span>
+              {h.note && <span className="muted">・{h.note}</span>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

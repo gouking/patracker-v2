@@ -297,7 +297,9 @@ async function main() {
   await rejects("Sourcer 不能批次填屬性(403)", () => Parts.updatePartsField(aSourcer, sourcer.id, ids, "part_type", "訂製件"), 403);
   const excluded = await Parts.setExcluded(aPm, pm.id, [ids[0]], true);
   ok("PM 可以把料號標成不追蹤", excluded === 1);
-  await rejects("Sourcer 不能改不追蹤(403)", () => Parts.setExcluded(aSourcer, sourcer.id, [ids[1]], true), 403);
+  await rejects("沒有專案角色(唯讀)不能改不追蹤(403)", () => Parts.setExcluded({ ...aSourcer, roles: [], isAdmin: false, canManage: false }, sourcer.id, [ids[1]], true), 403);
+  ok("專案成員(Sourcer)也能排除", (await Parts.setExcluded(aSourcer, sourcer.id, [ids[1]], true)) === 1);
+  await Parts.setExcluded(aSourcer, sourcer.id, [ids[1]], false);
   const skipped = await Parts.updatePartsField(aPm, pm.id, [ids[0]], "part_type", "訂製件");
   ok("不追蹤的料不會被批次改到", skipped === 0);
   const restored = await Parts.setExcluded(aPm, pm.id, [ids[0]], false);
@@ -310,6 +312,17 @@ async function main() {
   const ph = (over, iss = []) => derivePhase({ ...base, ...over }, iss);
   ok("沒有日期 → 未發起", ph({}) === "not_started");
   ok("發起了 → 待通知廠商", ph({ pa_start: "2026-01-05" }) === "to_notify");
+  ok("卡關原因還留著、但已上傳 PLM → PLM簽核", ph({ pa_start: "2026-01-05", hold_reason: "待RD圖面進版", plm_upload: "2026-10-30" }) === "plm_signing");
+  ok("卡關中沒上傳 PLM → 還是卡關", ph({ pa_start: "2026-01-05", hold_reason: "待RD圖面進版" }) === "hold_ec");
+  ok("待RD圖面進版、圖面已 Release → 待上傳 PLM", ph({ pa_start: "2026-01-05", hold_reason: "待RD圖面進版", drawing_release: "2026-10-30" }) === "plm_ready");
+  {
+    const hp = (await Parts.listParts(project.id)).find((p) => !p.excluded && !p.removed_from_bom && !p.plm_upload && !p.hold_reason);
+    await Parts.updatePartField(aPm, pm.id, hp.id, "hold_reason", "待RD圖面進版");
+    await Parts.updatePartField(aSourcer, sourcer.id, hp.id, "plm_upload", "2026-10-30");
+    const after1 = (await Parts.listParts(project.id)).find((p) => p.id === hp.id);
+    ok("上傳 PLM 後卡關原因自動清掉", after1.hold_reason === "" && after1.plm_upload === "2026-10-30", `[${after1.hold_reason}]`);
+    await Parts.updatePartField(aSourcer, sourcer.id, hp.id, "plm_upload", null);
+  }
   ok("通知了還沒收齊 → 廠商準備資料", ph({ pa_start: "2026-01-05", supplier_notified: "2026-01-06" }) === "supplier");
   const docs = { pa_start: "2026-01-05", supplier_notified: "2026-01-06", docs_received: "2026-01-10" };
   ok("收齊、QA 還沒 pass → 待QA審核", ph(docs) === "review_qa");
@@ -352,12 +365,39 @@ async function main() {
   const blank = (await Parts.listParts(project.id)).filter((p) => !p.excluded && !p.removed_from_bom && !p.docs_received && !p.supplier_notified && p.id !== target.id);
   await db.run("update pa_parts set pa_start = null where id = any(?::text[])", [blank.map((p) => p.id)]);
   const flow = blank[0].id;
-  await rejects("卡關原因只能選清單裡的(400)", () => Parts.updatePartField(aPm, pm.id, flow, "hold_reason", "隨便"), 400);
+  await rejects("卡關原因太長(400)", () => Parts.updatePartField(aPm, pm.id, flow, "hold_reason", "長".repeat(41)), 400);
   await rejects("Sourcer 不能改卡關原因(403)", () => Parts.updatePartField(aSourcer, sourcer.id, flow, "hold_reason", "ISSUE"), 403);
   await rejects("RD 不能填上傳 PLM(403)", () => Parts.updatePartField(aRd, rd.id, flow, "plm_upload", "2026-02-20"), 403);
   await Parts.updatePartField(aRd, rd.id, flow, "hold_reason", "ISSUE");
   ok("RD 可以標 ISSUE", (await Parts.partRow(aPm, flow)).ev.phase === "hold_issue");
   await Parts.updatePartField(aPm, pm.id, flow, "hold_reason", "");
+
+  section("卡關:自由填原因、日期、負責人、完成日期");
+  {
+    const n0 = (await Parts.partDetail(aPm, flow)).holds.length;
+    await Parts.setHold(aPm, pm.id, flow, { reason: "廠商停產", since: "2026-03-01", owner: sourcer.id, note: "等替代料" });
+    const r1 = (await Parts.listParts(project.id)).find((x) => x.id === flow);
+    ok("自由填的原因 → 卡關(ISSUE 那一段)", r1.hold_reason === "廠商停產" && r1.ev.phase === "hold_issue", r1.ev.phase);
+    ok("卡關日期、負責人、備註存起來", r1.hold_since === "2026-03-01" && r1.hold_owner === sourcer.id && r1.hold_note === "等替代料");
+    await rejects("負責人要是專案成員(400)", () => Parts.setHold(aPm, pm.id, flow, { reason: "X", owner: randomUUID() }), 400);
+    await rejects("Sourcer 不能標卡關(403)", () => Parts.setHold(aSourcer, sourcer.id, flow, { reason: "X" }), 403);
+    await rejects("完成日期不能早於卡關日期(400)", () => Parts.resolveHold(aPm, pm.id, flow, "2026-02-01"), 400);
+    await Parts.setHold(aPm, pm.id, flow, { reason: "待RD圖面進版", since: "2026-03-10", owner: rd.id });
+    const d1 = await Parts.partDetail(aPm, flow);
+    ok("換原因 → 舊的一筆結案進歷史", d1.holds.length === n0 + 1 && d1.holds.some((h) => h.reason === "廠商停產" && h.resolved === "2026-03-10" && h.owner_name !== ""));
+    await Parts.resolveHold(aPm, pm.id, flow, "2026-03-20");
+    const d2 = await Parts.partDetail(aPm, flow);
+    ok("解除卡關 → 欄位清空、回到日期推的階段", d2.part.hold_reason === "" && d2.part.hold_since == null && d2.part.ev.phase !== "hold_ec" && d2.part.ev.phase !== "hold_issue", d2.part.ev.phase);
+    ok("歷史多了兩筆(含完成日期)", d2.holds.length === n0 + 2 && d2.holds.some((h) => h.reason === "待RD圖面進版" && h.started === "2026-03-10" && h.resolved === "2026-03-20"));
+    await rejects("沒在卡關不能解除(400)", () => Parts.resolveHold(aPm, pm.id, flow, "2026-03-21"), 400);
+    // 表格上直接改原因:卡關日期 = 今天
+    await Parts.updatePartField(aPm, pm.id, flow, "hold_reason", "ISSUE");
+    const r3 = (await Parts.listParts(project.id)).find((x) => x.id === flow);
+    ok("表格直接改原因 → 有卡關日期", r3.hold_reason === "ISSUE" && Boolean(r3.hold_since));
+    await Parts.updatePartField(aPm, pm.id, flow, "hold_reason", "");
+    const d3 = await Parts.partDetail(aPm, flow);
+    ok("表格清掉原因 → 這筆也進歷史", d3.part.hold_reason === "" && d3.holds.length === n0 + 3);
+  }
 
   section("即時通知");
   const kinds = (ev) => ev.map((e) => e.kind).join();
@@ -429,7 +469,8 @@ async function main() {
   await P.setMemberRoles(aPm, real.id, realRoles);
   await rejects("RD 不能填承認樣品(403)", () => Parts.updatePartField(aRd, rd.id, ow, "sample_received", "2026-02-01"), 403);
   await Parts.updatePartField(aSourcer, sourcer.id, ow, "sample_received", "2026-02-01");
-  await rejects("Sourcer 不能填圖面 Release(403)", () => Parts.updatePartField(aSourcer, sourcer.id, ow, "drawing_release", "2026-02-01"), 403);
+  await Parts.updatePartField(aSourcer, sourcer.id, ow, "drawing_release", "2026-02-01");
+  ok("Sourcer 也能填圖面 Release", (await Parts.partRow(aPm, ow)).drawing_release === "2026-02-01");
   await Parts.updatePartField(aRd, rd.id, ow, "drawing_release", "2026-02-02");
   const owRow = await Parts.partRow(aPm, ow);
   ok("承認樣品／圖面 Release 存得進去", owRow.sample_received === "2026-02-01" && owRow.drawing_release === "2026-02-02");

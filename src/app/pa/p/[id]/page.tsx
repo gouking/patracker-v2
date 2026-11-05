@@ -104,6 +104,7 @@ function ProjectView({ id }: { id: string }) {
         initialMine={sp.get("mine") === "1"}
         initialOverdue={sp.get("overdue") === "1"}
         initialPhase={PHASE_BY_KEY[sp.get("phase") as PhaseKey] ? (sp.get("phase") as PhaseKey) : null}
+        initialRej={Number.isInteger(Number(sp.get("rej"))) && Number(sp.get("rej")) > 0 ? Number(sp.get("rej")) : null}
       />
     </>
   );
