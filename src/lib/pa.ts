@@ -28,7 +28,7 @@ export const HOLD_REASONS: HoldReason[] = ["待RD圖面進版", "ISSUE"];
 export const holdHint = (reason: string): string => (HOLD_HINT as Record<string, string>)[reason] ?? "卡關中（自訂原因）";
 export const HOLD_HINT: Record<HoldReason, string> = {
   待RD圖面進版: "包材圖面待進版（EC）後上 PLM",
-  ISSUE: "尚未提交初版文件，需 PM/RD 決議",
+  ISSUE: "卡關中，需 PM/RD 決議",
 };
 
 export interface Sla {
