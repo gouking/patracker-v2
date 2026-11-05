@@ -4,7 +4,7 @@
 
 ## 切換前(任何時候都可以做)
 1. 新主機照下面「新主機安裝」裝好,`.env.local` 照 `.env.example` 填好,**`PA_SCHEDULER` 先留空**。
-2. `npm run build`、`npm start`,開 `http://新主機IP:3200/pa/login`:
+2. `npm run build`、`npm start`,開 `http://tpp1131.contoso.com/pa/login`:
    用「忘記密碼/第一次登入」收信設定你自己的密碼 → 登入看得到專案與料號。
 3. SMTP 測試:上一步收得到設定密碼信就是通了;也可 `POST /api/pa/supplier-chase {"to":"自己的信箱"}`(admin)。
 
@@ -17,7 +17,7 @@
 3. 停掉 Vercel 的 PA 寄信:移除 `web-gantt/vercel.json` 裡 `/api/pa/digest` 與 `/api/pa/supplier-chase` 兩個 cron 並部署
    (`/api/reminders` 是甘特圖的提醒,不要動)。
 4. 新主機設 `PA_SCHEDULER=1` 後重啟。log 會出現「[pa scheduler] 已啟動」。
-5. 通知同事新網址 `http://新主機IP:3200/pa`,**第一次登入按「忘記密碼/第一次登入」收信設定密碼**;
+5. 通知同事新網址 `http://tpp1131.contoso.com/pa`(web-gantt 首頁的 PA Tracker 連結已指到這裡),**第一次登入按「忘記密碼/第一次登入」收信設定密碼**;
    web-gantt 的 `/pa` 與首頁 PA 摘要加一個「已搬家」公告(那邊的數字會停在搬家那一刻)。
 
 ## 退路
@@ -30,9 +30,9 @@
    再把舊電腦的 `data/` 資料夾複製過去(資料庫不在 GitHub 上),`npm ci`,`npm run build`。
    之後改程式:push → 新主機 `git pull`、`npm ci`、`npm run build`、重啟。
 3. `.env.local` 照 `.env.example` 填:`SESSION_SECRET`(新產生一把隨機值)、`NEXT_PUBLIC_APP_URL`、`SMTP_*`。
-4. 開機自動啟動:`scripts/start-patracker.cmd` 與 `.vbs` 是範本,**裡面的 node 與資料夾路徑要改成新主機的**,再用工作排程在登入時執行。port 3200。
-5. 內網直連(不用 Cloudflare):新主機設固定 IP(路由器 DHCP 保留),防火牆開 3200(系統管理員):
-   `netsh advfirewall firewall add rule name="PA Tracker" dir=in action=allow protocol=TCP localport=3200`
+4. 開機自動啟動:`scripts/start-patracker.cmd` 與 `.vbs` 是範本,**裡面的 node 與資料夾路徑要改成新主機的**,再用工作排程在登入時執行。port 80(`npm start` 也是 80;開發用 `npm run dev` 仍是 3200)。先確認 80 沒被佔用:`netstat -ano | findstr ":80 "`,有 IIS/其他網站要先停掉。
+5. 內網直連(不用 Cloudflare):新主機設固定 IP(路由器 DHCP 保留),防火牆開 80(系統管理員):
+   `netsh advfirewall firewall add rule name="PA Tracker" dir=in action=allow protocol=TCP localport=80`
    只有內網連得到;http 下 cookie 不加 Secure。
 6. 每日備份:`scripts/backup-patracker.cmd` 是範本(路徑改成新主機的),再排程每天 03:00 跑:
    `schtasks /create /tn patracker-backup /sc daily /st 03:00 /tr "<專案資料夾>\scripts\backup-patracker.cmd"`
