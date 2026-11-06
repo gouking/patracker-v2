@@ -59,9 +59,11 @@ function Projects() {
         <Link className="btn btn-sm btn-ghost" href="/pa/sla" title="全公司的 SLA 天數（系統管理員可修改）">
           SLA 設定
         </Link>
-        <Link className="btn btn-sm btn-ghost" href="/pa/connect" title="給 map_system 等程式用的個人連線金鑰">
-          連線金鑰
-        </Link>
+        {data?.me.isAdmin && (
+          <Link className="btn btn-sm btn-ghost" href="/pa/connect" title="給 map_system 等程式用的個人連線金鑰（僅管理者）">
+            連線金鑰
+          </Link>
+        )}
       </PaTopBar>
       <main className="page">
         <h1>零件承認追蹤</h1>

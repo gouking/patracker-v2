@@ -26,6 +26,7 @@ export interface TokenInfo {
 /** 用金鑰呼叫的請求不能再管理金鑰——外流的金鑰不該能幫自己續命或多開幾把 */
 function requireBrowser(user: User) {
   if (user.viaToken) throw new HttpError(403, "連線金鑰不能用來管理金鑰，請在網頁上操作");
+  if (!user.isAdmin) throw new HttpError(403, "只有管理者能管理連線金鑰");
 }
 
 export async function listTokens(user: User): Promise<TokenInfo[]> {
