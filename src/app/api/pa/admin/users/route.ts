@@ -55,3 +55,32 @@ export const PATCH = handle(async (req, user) => {
   if (!active) revokeAllSessions(id); // 停用立刻生效
   return { ok: true };
 });
+
+/** 刪除帳號(不可復原):連同專案成員資格、連線金鑰、偏好設定一起清掉。歷史紀錄保留。 */
+export const DELETE = handle(async (req, user) => {
+  requireAdmin(user);
+  const b = await body(req);
+  const id = String(b.id ?? "");
+  const db = sqliteConn();
+  const target = db.prepare("select id, role, is_active from users where id = ?").get(id) as
+    | { id: string; role: string; is_active: number }
+    | undefined;
+  if (!target) throw new HttpError(404, "找不到這個帳號");
+  if (id === user.id) throw new HttpError(400, "不能刪除自己");
+  if (target.role === "admin" && target.is_active) {
+    const admins = (db.prepare("select count(*) as n from users where role = 'admin' and is_active = 1").get() as { n: number }).n;
+    if (admins <= 1) throw new HttpError(400, "至少要留一位啟用中的系統管理員");
+  }
+  revokeAllSessions(id);
+  db.exec("BEGIN");
+  try {
+    for (const t of ["pa_project_members","pa_api_tokens", "pa_user_prefs", "pa_digest_log"])
+      db.prepare(`delete from ${t} where user_id = ?`).run(id);
+    db.prepare("delete from users where id = ?").run(id);
+    db.exec("COMMIT");
+  } catch (e) {
+    db.exec("ROLLBACK");
+    throw e;
+  }
+  return { ok: true };
+});

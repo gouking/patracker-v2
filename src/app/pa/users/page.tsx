@@ -62,6 +62,20 @@ function Users() {
     }
   }
 
+  async function remove(r: Row) {
+    if (!confirm(`永久刪除 ${r.name || r.email}？\n帳號與專案成員資格會被移除，無法復原。（只想擋住登入請用「停用」）`)) return;
+    setBusyId(r.id);
+    setError(null);
+    try {
+      await api("/api/pa/admin/users", { method: "DELETE", json: { id: r.id } });
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   return (
     <>
       <PaTopBar crumb="使用者與角色" />
@@ -114,6 +128,13 @@ function Users() {
                         }}
                       >
                         {r.is_active ? "停用" : "啟用"}
+                      </button>{" "}
+                      <button
+                        className="btn btn-sm btn-ghost btn-danger"
+                        disabled={busyId === r.id}
+                        onClick={() => remove(r)}
+                      >
+                        刪除
                       </button>
                     </td>
                   </tr>
