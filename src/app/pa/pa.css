@@ -306,6 +306,7 @@ body.pa-resizing { cursor: col-resize; user-select: none; }
 .pa-root .pb-table td { padding: 3px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pa-root .pb-table .num { text-align: right; }
 .pa-root .pb-table td.desc { color: var(--ink-soft); }
+.pa-root .pb-table tr.pb-wrap td { white-space: normal; vertical-align: top; overflow: visible; }
 .pa-root .pb-table tfoot td { font-weight: 700; border-bottom: 0; border-top: 1px solid var(--line-strong); }
 /* 整列可點:第一格的連結用 ::after 撐滿整列(tr 是定位基準) */
 .pa-root .pb-table tbody tr { position: relative; }

@@ -66,7 +66,7 @@ export default function PhaseBoard({
                   <td colSpan={5}>流程外</td>
                 </tr>
               )}
-              <tr className={n ? "" : "zero"}>
+              <tr className={`${n ? "" : "zero"}${ph.key === "hold_issue" ? " pb-wrap" : ""}`}>
                 <td>
                   {n ? (
                     <Link href={href(ph.key)} className="pb-rowlink" title="點一下進專案、只看這些">
