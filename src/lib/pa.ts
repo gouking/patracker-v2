@@ -380,8 +380,15 @@ export interface StageEval {
   orderError: boolean;
 }
 
+/** 卡在 ISSUE(卡關原因不是「待RD圖面進版」)的料:進度被卡住,不是人慢,所以不算逾期、不亮紅黃燈。
+ *  解除卡關後照原本的日期繼續算。已送 PLM、已完成、不追蹤的料不看卡關。 */
+export function onIssueHold(part: Pick<Part, "hold_reason" | "excluded" | "plm_upload" | "plm_released">): boolean {
+  return Boolean(part.hold_reason) && part.hold_reason !== "待RD圖面進版" && !part.excluded && !isDate(part.plm_upload) && !isDate(part.plm_released);
+}
+
 export function evalStage(part: Part, stage: Stage, sla: Sla, today: string, issues: IssueLite[] = []): StageEval {
   const none: StageEval = { light: null, overBy: 0, dueIn: null, orderError: false };
+  if (onIssueHold(part)) return none;
   const from = stageStart(part, stage, issues);
   if (!isDate(from)) return none;
   const days = stageDays(part, stage, sla, issues);
@@ -424,6 +431,7 @@ export function evalSupplierUpdate(
   part: Part, issues: IssueLite[], sla: Sla, today: string, only?: Issue["dept"]
 ): SupplierUpdateEval {
   let worst: SupplierUpdateEval = { light: null, overBy: 0, dueIn: null, orderError: false, dept: null, from: null };
+  if (onIssueHold(part)) return worst; // ISSUE 卡關中不算逾期
   for (const dept of (only ? [only] : ["QA", "RD"]) as Issue["dept"][]) {
     const i = pendingResubmit(part, issues, dept);
     if (!i) continue;
@@ -449,6 +457,7 @@ export function evalRereview(
   const days = Number.isFinite(sla.rereview) ? sla.rereview : DEFAULT_SLA.rereview;
   // 已送 PLM、已完成、不追蹤、卡在圖面進版的料,審核早就結束了,不會還在等複審
   if (part.excluded || isDate(part.plm_upload) || isDate(part.plm_released) || part.hold_reason === "待RD圖面進版") return worst;
+  if (onIssueHold(part)) return worst; // ISSUE 卡關中不算逾期
   for (const dept of (only ? [only] : ["QA", "RD"]) as Issue["dept"][]) {
     if (isDate(dept === "RD" ? part.rd_pass : part.qa_pass)) continue;
     if (dept === "RD" && !rdNeeded(part, issues)) continue;
