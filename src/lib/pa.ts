@@ -29,11 +29,10 @@ export const holdHint = (reason: string): string => (HOLD_HINT as Record<string,
 export const HOLD_HINT: Record<HoldReason, string> = {
   待RD圖面進版: "包材圖面待進版（EC）後上 PLM",
   ISSUE:
-    "卡關中，負責人以每顆料的「卡關負責人」為準。常見狀況與負責人：" +
-    "尚未提交初版文件→Sourcer（催廠商），PM 追；" +
-    "廠商停產／EOL／要換料→PM、RD 決議；" +
-    "規格或圖面要修改→RD；" +
-    "廠商不配合、拖延→Sourcer 向 PM 升級",
+    "卡關中，原因由人填寫，負責人是每顆料的「卡關負責人」。" +
+    "廠商端的問題（待報價、廠商延遲、停產／EOL）→Sourcer 處理，必要時請 PM 決議；" +
+    "規格、圖面、替代料問題→RD；" +
+    "需要取捨或升級→PM",
 };
 
 export interface Sla {
