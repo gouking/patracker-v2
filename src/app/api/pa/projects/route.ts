@@ -22,7 +22,7 @@ export const GET = handle(async (req, user) => {
     projects: projects.map((p) => ({
       ...p,
       roles: roles.get(p.id) ?? [],
-      ...(stats.get(p.id) ?? { total: 0, approved: 0, started: 0, red: 0, mine: 0, phases: {}, phaseTotal: 0, reworkQa: {} }),
+      ...(stats.get(p.id) ?? { total: 0, approved: 0, started: 0, red: 0, mine: 0, phases: {}, phaseTotal: 0, reworkQa: {}, issues: [] }),
     })),
   };
 });

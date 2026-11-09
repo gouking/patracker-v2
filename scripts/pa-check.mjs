@@ -602,7 +602,8 @@ async function main() {
   ok("記下最後使用時間", Boolean((await Tokens.listTokens(sysadmin)).find((x) => x.id === made.info.id)?.last_used_at));
   await rejects("用金鑰不能再開金鑰(403)", () => Tokens.createToken(viaPat, "偷開"), 403);
   ok("亂打的金鑰認不得", (await Tokens.userFromApiToken("pa_" + "x".repeat(43))) === null);
-  await rejects("不能撤銷別人的金鑰(404)", () => Tokens.revokeToken(pm, made.info.id), 404);
+  await rejects("非管理者不能管金鑰(403)", () => Tokens.revokeToken(pm, made.info.id), 403);
+  await rejects("非管理者不能開金鑰(403)", () => Tokens.createToken(pm, "偷開"), 403);
   await Tokens.revokeToken(sysadmin, made.info.id);
   ok("撤銷後立刻失效", (await Tokens.userFromApiToken(made.token)) === null);
   await db.run("delete from pa_api_tokens where id = ?", [made.info.id]);

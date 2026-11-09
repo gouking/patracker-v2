@@ -108,6 +108,8 @@ export interface ProjectStat {
   phaseTotal: number;
   /** 「廠商資料更新」(QA 退件)那些料,各被 QA 退件幾次:{ 退件次數: 料數 } */
   reworkQa: Record<number, number>;
+  /** ISSUE 階段的料(首頁階段表下面列出來):料號、卡關原因、卡關負責人、卡關日期 */
+  issues: { part_pn: string; part_desc: string; reason: string; owner: string; since: string | null }[];
 }
 
 /** 專案卡片與首頁摘要要的數字。
@@ -132,12 +134,15 @@ export async function projectStats(
   > & {
     last_rd_issue: string | null; last_qa_issue: string | null; last_rd_resub: string | null; last_qa_resub: string | null;
     last_rd_created: string | null; last_qa_created: string | null; qa_issue_n: string | number | null;
+    part_pn: string; part_desc: string; hold_since: string | null; hold_owner_name: string | null;
   } &
     Partial<Sla>;
   const rows = await db.all<Row>(
     `select p.project_id, p.part_type, p.pa_start, p.supplier_notified, p.docs_received,
             p.rd_review_start, p.qa_review_start, p.rd_pass, p.qa_pass, p.plm_upload, p.plm_released, p.hold_reason, p.excluded,
             p.supplier_updated, p.supplier_updated_at, p.rd_owner, p.drawing_release,
+            p.part_pn, p.part_desc, p.hold_since,
+            (select coalesce(nullif(u.name, ''), u.email) from profiles u where u.id = p.hold_owner) as hold_owner_name,
             exists (select 1 from pa_pending_owners o where o.part_id = p.id and o.field = 'rd_owner') as rd_owner_pending,
             i.last_rd_issue, i.last_qa_issue, i.last_rd_resub, i.last_qa_resub, i.last_rd_created, i.last_qa_created, i.qa_issue_n,
             g.supplier_notified as sla_supplier_notified, g.docs_std, g.docs_custom, g.rd_pass as sla_rd_pass, g.qa_pass as sla_qa_pass,
@@ -160,7 +165,7 @@ export async function projectStats(
       where p.project_id = any(?::text[]) and p.removed_from_bom = 0`,
     [ids]
   );
-  for (const id of ids) out.set(id, { total: 0, approved: 0, started: 0, red: 0, mine: 0, phases: {}, phaseTotal: 0, reworkQa: {} });
+  for (const id of ids) out.set(id, { total: 0, approved: 0, started: 0, red: 0, mine: 0, phases: {}, phaseTotal: 0, reworkQa: {}, issues: [] });
   for (const r of rows) {
     const stat = out.get(r.project_id);
     if (!stat) continue;
@@ -181,6 +186,14 @@ export async function projectStats(
     const ev = evalPart(r as unknown as Part, iss, sla, today);
     stat.phases[ev.phase] = (stat.phases[ev.phase] ?? 0) + 1;
     stat.phaseTotal++;
+    if (ev.phase === "hold_issue")
+      stat.issues.push({
+        part_pn: r.part_pn,
+        part_desc: r.part_desc ?? "",
+        reason: r.hold_reason,
+        owner: r.hold_owner_name ?? "",
+        since: r.hold_since ?? null,
+      });
     if (ev.phase === "rework_qa") {
       const n = Number(r.qa_issue_n ?? 0);
       if (n > 0) stat.reworkQa[n] = (stat.reworkQa[n] ?? 0) + 1;

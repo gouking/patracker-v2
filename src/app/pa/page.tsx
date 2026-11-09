@@ -22,6 +22,7 @@ interface ProjectCard {
   phases: Partial<Record<PhaseKey, number>>;
   phaseTotal: number;
   reworkQa?: Record<number, number>;
+  issues?: { part_pn: string; part_desc: string; reason: string; owner: string; since: string | null }[];
 }
 
 interface Payload {
@@ -146,7 +147,7 @@ function Projects() {
                         打開追蹤表 →
                       </Link>
                     </div>
-                    <PhaseBoard projectId={p.id} counts={p.phases} total={p.phaseTotal} reworkQa={p.reworkQa} />
+                    <PhaseBoard projectId={p.id} counts={p.phases} total={p.phaseTotal} reworkQa={p.reworkQa} issues={p.issues} />
                   </section>
                 );
               return (

@@ -9,9 +9,11 @@ import { Fragment } from "react";
 import { PHASES, type PhaseKey } from "@/lib/pa";
 
 export default function PhaseBoard({
-  projectId, counts, total, reworkQa,
+  projectId, counts, total, reworkQa, issues,
 }: {
   projectId: string;
+  /** ISSUE 階段的料:列在那一列正下面(料號、原因、負責人、日期) */
+  issues?: { part_pn: string; part_desc: string; reason: string; owner: string; since: string | null }[];
   /** 「廠商資料更新」各被 QA 退件幾次的料數,顯示在那一列正下面 */
   reworkQa?: Record<number, number>;
   counts: Partial<Record<PhaseKey, number>>;
@@ -66,7 +68,7 @@ export default function PhaseBoard({
                   <td colSpan={5}>流程外</td>
                 </tr>
               )}
-              <tr className={`${n ? "" : "zero"}${ph.key === "hold_issue" ? " pb-wrap" : ""}`}>
+              <tr className={n ? "" : "zero"}>
                 <td>
                   {n ? (
                     <Link href={href(ph.key)} className="pb-rowlink" title="點一下進專案、只看這些">
@@ -81,6 +83,32 @@ export default function PhaseBoard({
                 <td>{ph.owner}</td>
                 <td className="desc" title={ph.desc}>{ph.desc}</td>
               </tr>
+              {ph.key === "hold_issue" && n > 0 && issues && issues.length > 0 && (
+                <tr className="pb-issues">
+                  <td colSpan={5}>
+                    <table className="pb-issuelist">
+                      <thead>
+                        <tr>
+                          <th>料號</th>
+                          <th>卡關原因</th>
+                          <th>負責人</th>
+                          <th>卡關日期</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {issues.map((it, i) => (
+                          <tr key={i}>
+                            <td className="mono" title={it.part_desc}>{it.part_pn}</td>
+                            <td>{it.reason}</td>
+                            <td>{it.owner || "（未指定）"}</td>
+                            <td className="mono">{it.since ?? "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </td>
+                </tr>
+              )}
               {ph.key === "rework_qa" && n > 0 && reworkQa && Object.keys(reworkQa).length > 0 && (
                 <tr className="pb-sub">
                   <td colSpan={5}>

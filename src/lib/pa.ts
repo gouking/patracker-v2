@@ -28,11 +28,7 @@ export const HOLD_REASONS: HoldReason[] = ["待RD圖面進版", "ISSUE"];
 export const holdHint = (reason: string): string => (HOLD_HINT as Record<string, string>)[reason] ?? "卡關中（自訂原因）";
 export const HOLD_HINT: Record<HoldReason, string> = {
   待RD圖面進版: "包材圖面待進版（EC）後上 PLM",
-  ISSUE:
-    "卡關中，原因由人填寫，負責人是每顆料的「卡關負責人」。" +
-    "廠商端的問題（待報價、廠商延遲、停產／EOL）→Sourcer 處理，必要時請 PM 決議；" +
-    "規格、圖面、替代料問題→RD；" +
-    "需要取捨或升級→PM",
+  ISSUE: "卡關中，原因由人填寫",
 };
 
 export interface Sla {
@@ -529,7 +525,7 @@ export const PHASES: PhaseDef[] = [
   { key: "not_started", label: "未發起", owner: "PM、RD", desc: "還沒發起 PA" },
   { key: "to_notify", label: "待通知廠商", owner: "Sourcer", desc: "已發起 PA，Sourcer 還沒通知供應商" },
   { key: "supplier", label: "廠商準備資料", owner: "Sourcer", desc: "廠商準備文件中（已通知、還沒收齊）" },
-  { key: "hold_issue", label: "ISSUE", owner: "依各料號而定", desc: HOLD_HINT.ISSUE, tone: "bad" },
+  { key: "hold_issue", label: "ISSUE", owner: "依各料號而定", desc: `${HOLD_HINT.ISSUE}，詳請請見下面列表`, tone: "bad" },
   { key: "review_qa", label: "待QA審核", owner: "QA", desc: "廠商已提供文件，待 QA 審核（QA 先審）" },
   { key: "rework_qa", label: "廠商資料更新", owner: "QA", desc: "被 QA 退件，廠商更新資料中（QA 追蹤，補件後 QA 複審）" },
   { key: "review_rd", label: "待RD審核", owner: "RD", desc: "QA 已 pass，待 RD 審核（QA 審完才換 RD）" },
