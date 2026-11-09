@@ -525,7 +525,7 @@ export const PHASES: PhaseDef[] = [
   { key: "not_started", label: "未發起", owner: "PM、RD", desc: "還沒發起 PA" },
   { key: "to_notify", label: "待通知廠商", owner: "Sourcer", desc: "已發起 PA，Sourcer 還沒通知供應商" },
   { key: "supplier", label: "廠商準備資料", owner: "Sourcer", desc: "廠商準備文件中（已通知、還沒收齊）" },
-  { key: "hold_issue", label: "ISSUE", owner: "RD、PM", desc: HOLD_HINT.ISSUE, tone: "bad" },
+  { key: "hold_issue", label: "ISSUE", owner: "依各料號而定", desc: HOLD_HINT.ISSUE, tone: "bad" },
   { key: "review_qa", label: "待QA審核", owner: "QA", desc: "廠商已提供文件，待 QA 審核（QA 先審）" },
   { key: "rework_qa", label: "廠商資料更新", owner: "QA", desc: "被 QA 退件，廠商更新資料中（QA 追蹤，補件後 QA 複審）" },
   { key: "review_rd", label: "待RD審核", owner: "RD", desc: "QA 已 pass，待 RD 審核（QA 審完才換 RD）" },
