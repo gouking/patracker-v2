@@ -25,6 +25,7 @@ function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [role, setRole] = useState("user");
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -46,7 +47,7 @@ function Login() {
         else setSent(true);
         return;
       }
-      const err = await post(mode, mode === "signup" ? { email, password, name } : { email, password });
+      const err = await post(mode, mode === "signup" ? { email, password, name, role } : { email, password });
       if (err) setError(err);
       else window.location.href = next;
     } finally {
@@ -82,6 +83,16 @@ function Login() {
           電子郵件
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required />
         </label>
+        {mode === "signup" && (
+          <label>
+            角色
+            <select value={role} onChange={(e) => setRole(e.target.value)}>
+              <option value="user">一般使用者</option>
+              <option value="pm">PM</option>
+              <option value="team_head">團隊主管（看所有專案進度，唯讀）</option>
+            </select>
+          </label>
+        )}
         {mode !== "forgot" && (
           <label>
             密碼{mode === "signup" && "（至少 8 碼）"}

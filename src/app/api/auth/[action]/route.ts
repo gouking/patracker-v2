@@ -104,7 +104,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ action: string
 
     // 資料庫裡第一個帳號直接當 admin,否則沒人能管理。之後要加 admin 在使用者頁調整。
     const count = (db.prepare("select count(*) as n from users").get() as { n: number }).n;
-    const role = count === 0 ? "admin" : "user";
+    // 註冊時可自己選的角色只有這三個;PM Head、管理員等一律由管理員在使用者頁指派
+    const picked = String(body.role ?? "user");
+    const role = count === 0 ? "admin" : (["user", "pm", "team_head"] as const).find((r) => r === picked) ?? "user";
     const id = crypto.randomUUID();
     const ts = nowIso();
     db.prepare(
