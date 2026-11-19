@@ -381,9 +381,9 @@ export interface StageEval {
 }
 
 /** 卡在 ISSUE(卡關原因不是「待RD圖面進版」)的料:進度被卡住,不是人慢,所以不算逾期、不亮紅黃燈。
- *  解除卡關後照原本的日期繼續算。已送 PLM、已完成、不追蹤的料不看卡關。 */
-export function onIssueHold(part: Pick<Part, "hold_reason" | "excluded" | "plm_upload" | "plm_released">): boolean {
-  return Boolean(part.hold_reason) && part.hold_reason !== "待RD圖面進版" && !part.excluded && !isDate(part.plm_upload) && !isDate(part.plm_released);
+ *  解除卡關後照原本的日期繼續算。已完成、不追蹤的料不看卡關。 */
+export function onIssueHold(part: Pick<Part, "hold_reason" | "excluded" | "plm_released">): boolean {
+  return Boolean(part.hold_reason) && part.hold_reason !== "待RD圖面進版" && !part.excluded && !isDate(part.plm_released);
 }
 
 export function evalStage(part: Part, stage: Stage, sla: Sla, today: string, issues: IssueLite[] = []): StageEval {
@@ -559,10 +559,11 @@ function inRework(part: Part, issues: IssueLite[], dept: Issue["dept"]): boolean
 export function derivePhase(part: Part, issues: IssueLite[]): PhaseKey {
   if (part.excluded) return "na";
   if (isDate(part.plm_released)) return "done";
+  // 卡關原因可以自由填:除了「待RD圖面進版」(包材圖面,有自己的階段),其他都算 ISSUE 那一段。
+  // 就算已經上傳 PLM 送簽,只要又被標了 ISSUE 就是 ISSUE(人為標記優先);解除後回到 PLM 簽核
+  if (part.hold_reason && part.hold_reason !== "待RD圖面進版") return "hold_issue";
   // 已經上傳 PLM 送簽就是 PLM 簽核,不管卡關原因還留著什麼
   if (isDate(part.plm_upload)) return "plm_signing";
-  // 卡關原因可以自由填:除了「待RD圖面進版」(包材圖面,有自己的階段),其他都算 ISSUE 那一段
-  if (part.hold_reason && part.hold_reason !== "待RD圖面進版") return "hold_issue";
   // 圖面 Release 了,「待RD圖面進版」就解掉了 → 待上傳 PLM
   if (part.hold_reason === "待RD圖面進版") return isDate(part.drawing_release) ? "plm_ready" : "hold_ec";
   const rdOk = isDate(part.rd_pass);
