@@ -175,13 +175,19 @@ function PhaseChart({ days, shown, total }: { days: PhaseDay[]; shown: Set<Phase
           <b>{days[hover].date}</b>
           {[...active].reverse().filter((s) => days[hover].counts[s.key]).map((s) => (
             <div key={s.key}>
-              <i style={{ background: s.color }} /> {s.label} <span className="mono">{days[hover].counts[s.key]}</span>
+              <i style={{ background: s.color }} /> {s.label} <span className="mono">{days[hover].counts[s.key]}（{dayPct(days[hover], s.key)}）</span>
             </div>
           ))}
         </div>
       )}
     </div>
   );
+}
+
+/** 某階段占當天追蹤中料數的比例(分母 = 當天所有階段加總,跟長條整根的高度一致) */
+function dayPct(d: PhaseDay, key: PhaseKey): string {
+  const sum = PHASE_SERIES.reduce((a, s) => a + (d.counts[s.key] ?? 0), 0);
+  return sum ? `${(((d.counts[key] ?? 0) / sum) * 100).toFixed(1)}%` : "—";
 }
 
 function PhaseLines({ days, shown }: { days: PhaseDay[]; shown: Set<PhaseKey> }) {
@@ -240,7 +246,7 @@ function PhaseLines({ days, shown }: { days: PhaseDay[]; shown: Set<PhaseKey> })
           <b>{days[hover].date}</b>
           {active.filter((s) => days[hover].counts[s.key]).map((s) => (
             <div key={s.key}>
-              <i style={{ background: s.color }} /> {s.label} <span className="mono">{days[hover].counts[s.key]}</span>
+              <i style={{ background: s.color }} /> {s.label} <span className="mono">{days[hover].counts[s.key]}（{dayPct(days[hover], s.key)}）</span>
             </div>
           ))}
         </div>
