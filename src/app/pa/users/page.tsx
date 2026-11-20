@@ -21,8 +21,8 @@ interface Row {
 
 const ROLE_LABEL: Record<string, string> = {
   admin: "系統管理員",
-  team_head: "團隊主管（看所有專案進度，唯讀）",
-  pm_head: "PM Head（看所有專案）",
+  team_head: "團隊主管",
+  pm_head: "PM Head",
   pm_leader: "PM Leader",
   pm: "PM",
   user: "一般使用者",

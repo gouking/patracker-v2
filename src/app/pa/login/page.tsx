@@ -89,7 +89,7 @@ function Login() {
             <select value={role} onChange={(e) => setRole(e.target.value)}>
               <option value="user">一般使用者</option>
               <option value="pm">PM</option>
-              <option value="team_head">團隊主管（看所有專案進度，唯讀）</option>
+              <option value="team_head">團隊主管</option>
             </select>
           </label>
         )}
