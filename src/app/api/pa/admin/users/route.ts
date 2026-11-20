@@ -11,7 +11,8 @@ import type { User } from "@/server/pa/auth";
 
 export const dynamic = "force-dynamic";
 
-const ROLES = ["admin", "team_head", "pm_head", "pm_leader", "pm", "user", "trial"] as const;
+// 可以指派的角色。PM Head、試用者已停用:舊帳號保留原角色(不影響),但不能再指派給別人
+const ROLES = ["admin", "team_head", "pm_leader", "pm", "user"] as const;
 
 function requireAdmin(u: User) {
   if (!u.isAdmin || u.viaToken) throw new HttpError(403, "只有系統管理員可以管理使用者");
@@ -41,7 +42,7 @@ export const PATCH = handle(async (req, user) => {
   if (!target) throw new HttpError(404, "找不到這個帳號");
 
   const role = b.role === undefined ? target.role : String(b.role);
-  if (!(ROLES as readonly string[]).includes(role)) throw new HttpError(400, "沒有這個角色");
+  if (role !== target.role && !(ROLES as readonly string[]).includes(role)) throw new HttpError(400, "沒有這個角色");
   const active = b.is_active === undefined ? target.is_active : b.is_active ? 1 : 0;
 
   // 不能把自己降級或停用:避免整個系統沒有管理員

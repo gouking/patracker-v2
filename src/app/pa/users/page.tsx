@@ -110,7 +110,7 @@ function Users() {
                     <td className="mono">{r.email}</td>
                     <td>
                       <select value={r.role} disabled={busyId === r.id} onChange={(e) => patch(r, { role: e.target.value })}>
-                        {roles.map((x) => (
+                        {(roles.includes(r.role) ? roles : [...roles, r.role]).map((x) => (
                           <option key={x} value={x}>
                             {ROLE_LABEL[x] ?? x}
                           </option>

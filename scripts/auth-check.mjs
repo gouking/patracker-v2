@@ -148,7 +148,8 @@ async function main() {
   ok("管理員看得到全部帳號", list.status === 200 && list.json.users.length === 3, `${list.json.users?.length}`);
   ok("列表標出還沒設密碼的人", list.json.users.every((x) => x.no_password === 0), "(三個都已設密碼)");
   ok("一般使用者不能改角色(403)", (await admin("PATCH", wk.cookie, { id: worker.id, role: "admin" })).status === 403);
-  ok("管理員把員工升成 PM Head", (await admin("PATCH", a.cookie, { id: worker.id, role: "pm_head" })).status === 200);
+  ok("已停用的角色(PM Head、試用者)不能再指派", (await admin("PATCH", a.cookie, { id: worker.id, role: "pm_head" })).status === 400);
+  ok("管理員把員工升成團隊主管", (await admin("PATCH", a.cookie, { id: worker.id, role: "team_head" })).status === 200);
   ok("升級後看得到所有專案", (await whoami(wk.cookie))?.canViewAll === true);
   ok("沒有這個角色擋下", (await admin("PATCH", a.cookie, { id: worker.id, role: "god" })).status === 400);
   ok("不能把自己降級", (await admin("PATCH", a.cookie, { id: boss.id, role: "user" })).status === 400);
